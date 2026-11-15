@@ -1,0 +1,714 @@
+---
+title: "Results — Backbone comparison on AEMO NSW1 Actual LOR"
+subtitle: "Unsupervised AnoLLM-style value-token NLL scoring under a matched experimental contract"
+author: "Karimadini, Karimadini, Zhang, Naseem, Beheshti"
+date: today
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    code-fold: true
+    fig-width: 10
+    fig-height: 5
+  pdf:
+    toc: true
+    number-sections: true
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+```{python}
+#| label: setup
+#| echo: false
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+plt.rcParams.update(
+    {
+        "figure.dpi": 120,
+        "axes.grid": True,
+        "grid.alpha": 0.3,
+        "axes.titlesize": 11,
+        "axes.labelsize": 10,
+        "legend.fontsize": 8,
+    }
+)
+
+import os
+
+# Repository root = nearest ancestor holding pyproject.toml.
+REPO = next(p for p in (Path.cwd(), *Path.cwd().parents) if (p / "pyproject.toml").is_file())
+# Published reference results by default; point RESULTS_DIR at a reproduced run,
+# e.g. RESULTS_DIR=outputs/rescore quarto render paper/results.qmd
+RESULTS_REL = os.environ.get("RESULTS_DIR", "results")
+BACKUP = REPO / RESULTS_REL
+WEIGHTS = REPO / "weights"
+QUANTILES = ("q90", "q95", "q99")
+Q_FLOAT = {"q90": 0.90, "q95": 0.95, "q99": 0.99}
+SEVERITIES = ("LOR1", "LOR2", "LOR3")
+
+# Approximate parameter counts for size-ordered reporting
+PARAM_ORDER = {
+    "SmolLM2-135M": 0.135,
+    "gemma-3-270m": 0.27,
+    "SmolLM2-360M": 0.36,
+    "Qwen2.5-0.5B": 0.5,
+    "Qwen2.5-1.5B": 1.5,
+    "SmolLM-1.7B": 1.7,
+    "gemma-2-2b": 2.0,
+    "Qwen2.5-3B": 3.0,
+    "mistral-7b-v0.3": 7.0,
+    "Cosmos-Reason1-7B": 7.1,
+}
+
+
+def _load_json(path: Path) -> dict[str, Any] | None:
+    if not path.is_file():
+        return None
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _pretty(folder: str, train: dict[str, Any] | None) -> str:
+    raw = str((train or {}).get("model_name") or folder)
+    raw = (
+        raw.replace("unsloth/", "")
+        .replace("-unsloth-bnb-4bit", "")
+        .replace("-bnb-4bit", "")
+        .replace("-it", "")
+    )
+    mapping = {
+        "mistral-7b-v0.3": "Mistral 7B v0.3",
+        "Cosmos-Reason1-7B": "Cosmos Reason1 7B",
+        "SmolLM-1.7B": "SmolLM 1.7B",
+        "SmolLM2-135M": "SmolLM2 135M",
+        "SmolLM2-360M": "SmolLM2 360M",
+        "Qwen2.5-0.5B": "Qwen2.5 0.5B",
+        "Qwen2.5-1.5B": "Qwen2.5 1.5B",
+        "Qwen2.5-3B": "Qwen2.5 3B",
+        "gemma-2-2b": "Gemma 2 2B",
+        "gemma-3-270m": "Gemma 3 270M",
+    }
+    for key, label in mapping.items():
+        if key.lower() in folder.lower() or key.lower() in raw.lower():
+            return label
+    return raw
+
+
+def _find_first(folder: Path, relative_candidates: list[str]) -> Path | None:
+    for rel in relative_candidates:
+        p = folder / rel
+        if p.is_file():
+            return p
+    # recursive fallback for oddly nested Colab dumps
+    name = Path(relative_candidates[0]).name
+    hits = list(folder.rglob(name))
+    return hits[0] if hits else None
+
+
+def discover_models(backup_root: Path) -> list[dict[str, Any]]:
+    models: list[dict[str, Any]] = []
+    for child in sorted(backup_root.iterdir()):
+        if not child.is_dir():
+            continue
+        metrics_path = _find_first(
+            child,
+            [
+                "metrics_actual_lor.json",
+                "evaluation/metrics_actual_lor.json",
+            ],
+        )
+        metrics = _load_json(metrics_path) if metrics_path else None
+        if metrics is None:
+            continue
+
+        train_path = WEIGHTS / child.name / "training_metrics.json"
+        if not train_path.is_file():
+            train_path = _find_first(child, ["model/training_metrics.json"])
+        train = _load_json(train_path) if train_path else {}
+
+        scores_path = _find_first(
+            child,
+            [
+                "val_test_scores.npz",
+                "scores/val_test_scores.npz",
+            ],
+        )
+
+        models.append(
+            {
+                "folder": child.name,
+                "label": _pretty(child.name, train),
+                "params_b": PARAM_ORDER.get(child.name, 99.0),
+                "metrics": metrics,
+                "train": train or {},
+                "scores_path": scores_path,
+            }
+        )
+
+    models.sort(key=lambda m: (m["params_b"], m["label"]))
+    if not models:
+        raise FileNotFoundError(f"No model metrics under {backup_root}")
+    return models
+
+
+def roc_auc(m: dict[str, Any]) -> float | None:
+    v = (m.get("ranking_metrics") or {}).get("roc_auc")
+    if v is None:
+        v = (m.get("binary_detection") or {}).get("roc_auc")
+    return float(v) if v is not None else None
+
+
+def avg_precision(m: dict[str, Any]) -> float | None:
+    v = (m.get("ranking_metrics") or {}).get("average_precision")
+    return float(v) if v is not None else None
+
+
+def recall_at(m: dict[str, Any], q: str) -> float | None:
+    v = ((m.get("by_quantile") or {}).get(q) or {}).get("binary_detection", {}).get(
+        "recall"
+    )
+    return float(v) if v is not None else None
+
+
+def precision_at(m: dict[str, Any], q: str) -> float | None:
+    v = ((m.get("by_quantile") or {}).get(q) or {}).get("binary_detection", {}).get(
+        "precision"
+    )
+    return float(v) if v is not None else None
+
+
+def f1_at(m: dict[str, Any], q: str) -> float | None:
+    v = ((m.get("by_quantile") or {}).get(q) or {}).get("binary_detection", {}).get("f1")
+    return float(v) if v is not None else None
+
+
+def fpr_at(m: dict[str, Any], q: str) -> float | None:
+    v = ((m.get("by_quantile") or {}).get(q) or {}).get("binary_detection", {}).get(
+        "false_positive_rate"
+    )
+    return float(v) if v is not None else None
+
+
+def sev_recall(m: dict[str, Any], q: str, sev: str) -> float | None:
+    v = (
+        ((m.get("by_quantile") or {}).get(q) or {})
+        .get("per_severity_recall", {})
+        .get(sev, {})
+        .get("recall")
+    )
+    return float(v) if v is not None else None
+
+
+def forecast_baseline(models: list[dict[str, Any]]) -> dict[str, Any]:
+    for m in models:
+        bench = m["metrics"].get("lor_benchmark") or m["metrics"].get(
+            "forecast_lor_benchmark"
+        )
+        if bench:
+            return bench
+    return {}
+
+
+def fmt(v: float | None, digits: int = 3) -> str:
+    if v is None or (isinstance(v, float) and np.isnan(v)):
+        return "n/a"
+    return f"{v:.{digits}f}"
+
+
+MODELS = discover_models(BACKUP)
+BASELINE = forecast_baseline(MODELS)
+BASE_RECALL = (
+    float(BASELINE["recall"]) if BASELINE.get("recall") is not None else None
+)
+N_EVAL = int(MODELS[0]["metrics"].get("n_eval_labeled") or 0)
+N_POS = int(
+    ((MODELS[0]["metrics"].get("by_quantile") or {}).get("q95") or {})
+    .get("binary_detection", {})
+    .get("n_positive")
+    or 0
+)
+
+best_auc_m = max(MODELS, key=lambda m: roc_auc(m["metrics"]) or -1)
+best_q90_m = max(MODELS, key=lambda m: recall_at(m["metrics"], "q90") or -1)
+```
+
+# Overview
+
+This section reports the unsupervised backbone sweep on NSW1 five-minute market windows under the matched AnoLLM-style contract described in the methodology and experimental-setup sections: train-only scaling, \(W{=}H{=}12\) windows, unsupervised LoRA fine-tuning, value-token negative log-likelihood (NLL) scoring, Actual Lack-of-Reserve (LOR) as ground truth, and AEMO Forecast LOR as a threshold-free institutional baseline.
+
+All figures and tables are generated from `results/<model>/` (evaluation metrics and score arrays; override with the `RESULTS_DIR` environment variable) and `weights/<model>/training_metrics.json` (training runtimes, where available). Models are ordered by approximate parameter count.
+
+```{python}
+#| label: cohort-note
+#| echo: false
+print(
+    f"Discovered {len(MODELS)} backbones under {RESULTS_REL}/. "
+    f"Evaluation pool: n={N_EVAL:,} labelled windows; "
+    f"Actual LOR positives: n={N_POS} "
+    f"({100.0 * N_POS / max(N_EVAL, 1):.2f}%). "
+    f"Forecast LOR baseline recall = {fmt(BASE_RECALL)}."
+)
+```
+
+::: {.callout-important}
+Because Actual LOR windows are rarer than 1%, **accuracy is not informative**. We emphasise **ROC-AUC** (ranking) and **recall at score quantiles** \(q\in\{0.90,0.95,0.99\}\), plus severity-specific recall. LOR3 recall is undefined when no Actual LOR3 windows appear in the chronological evaluation period.
+:::
+
+
+# Ranking quality against Actual LOR
+
+ROC-AUC asks whether Actual LOR windows tend to receive higher NLL scores than non-LOR windows, independently of any single alarm rate.
+
+```{python}
+#| label: tbl-roc-auc
+#| tbl-cap: "ROC-AUC and average precision vs Actual LOR on the pooled val∪test set."
+
+rows = []
+for m in MODELS:
+    rows.append(
+        {
+            "Model": m["label"],
+            "~Params (B)": None if m["params_b"] >= 90 else float(m["params_b"]),
+            "ROC-AUC": roc_auc(m["metrics"]),
+            "Average precision": avg_precision(m["metrics"]),
+        }
+    )
+df_rank = pd.DataFrame(rows)
+df_rank.style.format(
+    {"ROC-AUC": "{:.3f}", "Average precision": "{:.4f}", "~Params (B)": "{:.2f}"},
+    na_rep="—",
+)
+```
+
+```{python}
+#| label: fig-roc-auc
+#| fig-cap: "ROC-AUC of value-token NLL scores against Actual LOR. The dashed line marks chance ranking (0.5)."
+
+labels = [m["label"] for m in MODELS]
+vals = [roc_auc(m["metrics"]) or 0.0 for m in MODELS]
+fig, ax = plt.subplots(figsize=(10, 4.6))
+colors = plt.cm.Blues(np.linspace(0.4, 0.9, len(labels)))
+bars = ax.bar(labels, vals, color=colors, edgecolor="#234")
+ax.axhline(0.5, color="#666", ls="--", lw=1, label="Chance (0.5)")
+ax.set_ylim(0, 1.05)
+ax.set_ylabel("ROC-AUC")
+ax.set_title("Ranking quality vs Actual LOR")
+ax.tick_params(axis="x", rotation=35)
+for bar, v in zip(bars, vals):
+    ax.text(bar.get_x() + bar.get_width() / 2, v + 0.015, f"{v:.3f}", ha="center", fontsize=8)
+ax.legend(loc="lower right")
+plt.tight_layout()
+plt.show()
+```
+
+**Interpretation.**
+All backbones exceed chance ranking, but absolute AUC remains moderate (rare-event, unsupervised, contaminated train set).
+The best ranking model in this dump is **`{python} best_auc_m["label"]`** with ROC-AUC **`{python} fmt(roc_auc(best_auc_m["metrics"]))`**.
+Larger models do not dominate uniformly: several sub-3B models approach the mid-0.66–0.67 band, while the weakest AUC among the tiny models indicates that capacity alone is not sufficient without a suitable pretrained prior for this serialised market text.
+Average precision stays low for every backbone because positives are extremely sparse; AP is reported for completeness but is secondary to AUC and recall.
+
+
+# Operating-point recall and the Forecast LOR baseline
+
+Thresholds are model-specific empirical score quantiles on the same evaluation pool. At quantile \(q\), the top \((1-q)\) fraction of windows is flagged. Forecast LOR is compared as \(\hat y^{\mathrm{F}}=\mathbf{1}\{s_{\mathrm{fcst}}>0\}\) with no learned threshold.
+
+```{python}
+#| label: tbl-recall
+#| tbl-cap: "Binary Actual-LOR recall at q90 / q95 / q99, with Forecast LOR baseline recall (threshold-free)."
+
+rows = []
+for m in MODELS:
+    rows.append(
+        {
+            "Model": m["label"],
+            "Recall@q90": recall_at(m["metrics"], "q90"),
+            "Recall@q95": recall_at(m["metrics"], "q95"),
+            "Recall@q99": recall_at(m["metrics"], "q99"),
+            "Δ vs Forecast @q90": (
+                None
+                if BASE_RECALL is None or recall_at(m["metrics"], "q90") is None
+                else recall_at(m["metrics"], "q90") - BASE_RECALL
+            ),
+        }
+    )
+rows.append(
+    {
+        "Model": "Forecast LOR baseline",
+        "Recall@q90": BASE_RECALL,
+        "Recall@q95": np.nan,
+        "Recall@q99": np.nan,
+        "Δ vs Forecast @q90": 0.0,
+    }
+)
+df_rec = pd.DataFrame(rows)
+df_rec.style.format(
+    {
+        "Recall@q90": "{:.3f}",
+        "Recall@q95": "{:.3f}",
+        "Recall@q99": "{:.3f}",
+        "Δ vs Forecast @q90": "{:+.3f}",
+    },
+    na_rep="—",
+)
+```
+
+```{python}
+#| label: fig-recall-quantiles
+#| fig-cap: "Actual-LOR recall at matched quantile thresholds. The red dashed line is AEMO Forecast LOR baseline recall."
+
+x = np.arange(len(QUANTILES))
+width = min(0.8 / max(len(MODELS), 1), 0.12)
+fig, ax = plt.subplots(figsize=(11, 5))
+for i, m in enumerate(MODELS):
+    recalls = [recall_at(m["metrics"], q) or 0.0 for q in QUANTILES]
+    offset = (i - (len(MODELS) - 1) / 2) * width
+    ax.bar(x + offset, recalls, width, label=m["label"])
+if BASE_RECALL is not None:
+    ax.axhline(
+        BASE_RECALL,
+        color="#c0392b",
+        ls="--",
+        lw=1.8,
+        label=f"Forecast LOR ({BASE_RECALL:.3f})",
+    )
+ax.set_xticks(x)
+ax.set_xticklabels(QUANTILES)
+ax.set_ylabel("Recall (Actual LOR windows)")
+ax.set_xlabel("Score quantile threshold")
+ax.set_ylim(0, 1.05)
+ax.set_title("Binary recall at quantile operating points")
+ax.legend(ncol=3, fontsize=7, loc="upper right")
+plt.tight_layout()
+plt.show()
+```
+
+**Interpretation.**
+Stricter quantiles trade coverage for fewer alarms: recall falls from \(q{=}0.90\) to \(q{=}0.99\) for every backbone.
+At the most permissive reported LLM operating point (\(q{=}0.90\)), the strongest coverage is **`{python} best_q90_m["label"]`** with recall **`{python} fmt(recall_at(best_q90_m["metrics"], "q90"))`**,
+compared with Forecast LOR recall **`{python} fmt(BASE_RECALL)`**.
+Models that beat the Forecast baseline at \(q{=}0.90\) do so by raising a larger alarm set (10% of windows); at \(q{=}0.95\) and especially \(q{=}0.99\), most backbones fall below the institutional baseline, underscoring threshold sensitivity rather than a free lunch in rare-event coverage.
+
+
+# Precision, F1, and false-positive rate
+
+```{python}
+#| label: tbl-precision-f1
+#| tbl-cap: "Precision, F1, and false-positive rate at each quantile (Actual LOR ground truth)."
+
+rows = []
+for m in MODELS:
+    for q in QUANTILES:
+        rows.append(
+            {
+                "Model": m["label"],
+                "Quantile": q,
+                "Precision": precision_at(m["metrics"], q),
+                "Recall": recall_at(m["metrics"], q),
+                "F1": f1_at(m["metrics"], q),
+                "FPR": fpr_at(m["metrics"], q),
+            }
+        )
+df_ops = pd.DataFrame(rows)
+df_ops.style.format(
+    {"Precision": "{:.4f}", "Recall": "{:.3f}", "F1": "{:.4f}", "FPR": "{:.3f}"},
+    na_rep="n/a",
+)
+```
+
+```{python}
+#| label: fig-recall-precision-q90
+#| fig-cap: "Recall–precision trade-off at q90. Marker size encodes approximate parameter count."
+
+fig, ax = plt.subplots(figsize=(8.5, 5))
+for m in MODELS:
+    r = recall_at(m["metrics"], "q90")
+    p = precision_at(m["metrics"], "q90")
+    if r is None or p is None:
+        continue
+    size = 40 + 25 * min(m["params_b"], 8)
+    ax.scatter(r, p, s=size, label=m["label"])
+    ax.annotate(m["label"], (r, p), textcoords="offset points", xytext=(4, 4), fontsize=7)
+if BASE_RECALL is not None:
+    ax.axvline(BASE_RECALL, color="#c0392b", ls="--", lw=1.2, label="Forecast recall")
+ax.set_xlabel("Recall @ q90")
+ax.set_ylabel("Precision @ q90")
+ax.set_title("Operating-point trade-off at the 90th score quantile")
+ax.legend(fontsize=7, loc="best")
+plt.tight_layout()
+plt.show()
+```
+
+**Interpretation.**
+Precision remains low at all quantiles because even a 1–10% alarm rate dwarfs the ~1% Actual LOR prevalence.
+FPR tracks the nominal quantile rate by construction (\(\approx 0.10/0.05/0.01\)), so differences across models appear mainly in **which** rare windows are captured (recall), not in raw false-alarm volume.
+F1 scores are correspondingly small; they should not be read as evidence of “failure” of the ranking signal already visible in ROC-AUC.
+
+
+# Severity-specific Actual LOR recall
+
+```{python}
+#| label: tbl-severity
+#| tbl-cap: "Per-severity Actual LOR recall at q90 and q95. LOR3 is n/a when no positives exist in the eval period."
+
+rows = []
+for m in MODELS:
+    row = {"Model": m["label"]}
+    for q in ("q90", "q95"):
+        for sev in SEVERITIES:
+            row[f"{sev}@{q}"] = sev_recall(m["metrics"], q, sev)
+    rows.append(row)
+# baseline
+base_sev = BASELINE.get("per_severity_recall") or {}
+row = {"Model": "Forecast LOR baseline"}
+for sev in SEVERITIES:
+    r = (base_sev.get(sev) or {}).get("recall")
+    row[f"{sev}@q90"] = float(r) if r is not None else np.nan
+    row[f"{sev}@q95"] = np.nan
+rows.append(row)
+df_sev = pd.DataFrame(rows)
+df_sev.style.format("{:.3f}", na_rep="n/a", subset=[c for c in df_sev.columns if c != "Model"])
+```
+
+```{python}
+#| label: fig-severity-q90
+#| fig-cap: "Per-severity Actual LOR recall at q90, including the Forecast LOR baseline."
+
+x = np.arange(len(SEVERITIES))
+n_series = len(MODELS) + 1
+width = min(0.8 / n_series, 0.1)
+fig, ax = plt.subplots(figsize=(11, 5))
+for i, m in enumerate(MODELS):
+    vals = [sev_recall(m["metrics"], "q90", sev) or 0.0 for sev in SEVERITIES]
+    offset = (i - (n_series - 1) / 2) * width
+    ax.bar(x + offset, vals, width, label=m["label"])
+base_vals = []
+for sev in SEVERITIES:
+    r = (base_sev.get(sev) or {}).get("recall")
+    base_vals.append(0.0 if r is None else float(r))
+offset = (len(MODELS) - (n_series - 1) / 2) * width
+ax.bar(x + offset, base_vals, width, color="#c0392b", label="Forecast LOR")
+ax.set_xticks(x)
+ax.set_xticklabels(SEVERITIES)
+ax.set_ylim(0, 1.05)
+ax.set_ylabel("Per-severity recall")
+ax.set_title("Severity-stratified Actual LOR recall at q90")
+ax.legend(ncol=3, fontsize=7)
+plt.tight_layout()
+plt.show()
+```
+
+**Interpretation.**
+LOR1 dominates the positive class in the evaluation window; LOR2 is sparse; LOR3 is absent from the chronological val∪test period used here, so LOR3 recall is reported as **n/a** (not zero).
+Severity tables therefore primarily measure coverage of LOR1 and LOR2.
+A model can improve overall recall while shifting the LOR1/LOR2 mix; comparing both overall and severity-wise recall avoids mistaking a LOR1-only detector for broad reserve-stress coverage.
+
+
+# Score distributions with quantile thresholds
+
+For each backbone we plot the empirical distribution of value-token NLL scores on labelled evaluation windows, overlay Actual LOR positives, and mark the \(q{=}0.90,0.95,0.99\) thresholds used for operating points. Subplots use at most three columns.
+
+```{python}
+#| label: fig-score-distributions
+#| fig-cap: "Per-model score distributions on val∪test. Grey: non-LOR windows; orange: Actual LOR windows. Vertical lines mark q90 / q95 / q99 thresholds."
+#| fig-height: 10
+
+usable = [m for m in MODELS if m["scores_path"] is not None and m["scores_path"].is_file()]
+n = len(usable)
+ncols = 3
+nrows = int(np.ceil(n / ncols))
+fig, axes = plt.subplots(nrows, ncols, figsize=(12, 3.2 * nrows), squeeze=False)
+
+for ax in axes.ravel():
+    ax.set_visible(False)
+
+for i, m in enumerate(usable):
+    ax = axes[i // ncols][i % ncols]
+    ax.set_visible(True)
+    z = np.load(m["scores_path"])
+    scores = np.asarray(z["scores"], dtype=np.float64)
+    sev = np.asarray(z["actual_sev"], dtype=np.int16)
+    has = np.asarray(z["has_label"], dtype=bool) if "has_label" in z.files else np.ones(len(scores), bool)
+    scores = scores[has]
+    sev = sev[has]
+    lor = sev > 0
+    non = ~lor
+
+    # Robust x-range: clip extreme tails for readability
+    lo, hi = np.quantile(scores, [0.001, 0.999])
+    bins = np.linspace(lo, hi, 60)
+
+    ax.hist(
+        scores[non],
+        bins=bins,
+        density=True,
+        color="#9aa5b1",
+        alpha=0.75,
+        label="Non-LOR",
+    )
+    if lor.any():
+        ax.hist(
+            scores[lor],
+            bins=bins,
+            density=True,
+            color="#e67e22",
+            alpha=0.65,
+            label="Actual LOR",
+        )
+
+    thr = {}
+    for qname, qf in Q_FLOAT.items():
+        t = float(np.quantile(scores, qf))
+        thr[qname] = t
+    ax.axvline(thr["q90"], color="#2980b9", ls="-", lw=1.3, label="q90")
+    ax.axvline(thr["q95"], color="#8e44ad", ls="--", lw=1.3, label="q95")
+    ax.axvline(thr["q99"], color="#c0392b", ls=":", lw=1.6, label="q99")
+
+    ax.set_title(m["label"], fontsize=10)
+    ax.set_xlabel("Value-token NLL score")
+    ax.set_ylabel("Density")
+    if i == 0:
+        ax.legend(fontsize=6, loc="upper right")
+
+for j in range(i + 1, nrows * ncols):
+    axes[j // ncols][j % ncols].set_visible(False)
+
+fig.suptitle("Anomaly score distributions vs Actual LOR (quantile thresholds)", y=1.01, fontsize=12)
+plt.tight_layout()
+plt.show()
+```
+
+**Interpretation.**
+Non-LOR mass is concentrated at lower NLL; Actual LOR windows (orange) are shifted right but still overlap heavily with the bulk—consistent with moderate AUC rather than separable clusters.
+Vertical quantile lines show why recall collapses at \(q{=}0.99\): only the extreme right tail is flagged, and many LOR windows sit left of that line.
+Comparing panels also shows that absolute NLL scales differ across tokenizers/backbones; **model-specific quantiles** are therefore essential for fair operating-point comparison.
+
+
+# Fine-tuning runtime and training loss
+
+Where `training_metrics.json` is present, we report unsupervised LoRA fine-tuning wall-clock time and final training loss (matched step budget in the protocol). Missing runtimes are shown as n/a (e.g. incomplete Colab artifact dumps).
+
+```{python}
+#| label: tbl-training
+#| tbl-cap: "Per-backbone fine-tuning summary from training_metrics.json (when available)."
+
+rows = []
+for m in MODELS:
+    tr = m["train"]
+    rt = tr.get("train_runtime_sec")
+    rows.append(
+        {
+            "Model": m["label"],
+            "Hub / recorded name": tr.get("model_name") or m["folder"],
+            "Setting": tr.get("setting") or "unsupervised",
+            "Train windows": tr.get("n_training_windows"),
+            "Train loss": tr.get("train_loss"),
+            "Fine-tune time (min)": (float(rt) / 60.0) if rt is not None else np.nan,
+            "Fine-tune time (h)": (float(rt) / 3600.0) if rt is not None else np.nan,
+        }
+    )
+df_tr = pd.DataFrame(rows)
+df_tr.style.format(
+    {
+        "Train loss": "{:.4f}",
+        "Fine-tune time (min)": "{:.1f}",
+        "Fine-tune time (h)": "{:.2f}",
+        "Train windows": "{:.0f}",
+    },
+    na_rep="n/a",
+)
+```
+
+```{python}
+#| label: fig-training-runtime
+#| fig-cap: "Reported unsupervised LoRA fine-tuning wall-clock time (minutes). Models without training_metrics.json are omitted."
+
+have_rt = [
+    (m["label"], float(m["train"]["train_runtime_sec"]) / 60.0)
+    for m in MODELS
+    if m["train"].get("train_runtime_sec") is not None
+]
+if have_rt:
+    labels, mins = zip(*have_rt)
+    fig, ax = plt.subplots(figsize=(10, 4.4))
+    ax.bar(labels, mins, color=plt.cm.Oranges(np.linspace(0.35, 0.85, len(labels))), edgecolor="#543")
+    ax.set_ylabel("Fine-tune time (minutes)")
+    ax.set_title("Unsupervised LoRA fine-tuning runtime")
+    ax.tick_params(axis="x", rotation=35)
+    for x, y in enumerate(mins):
+        ax.text(x, y + max(mins) * 0.01, f"{y:.1f}", ha="center", fontsize=8)
+    plt.tight_layout()
+    plt.show()
+else:
+    print("No training_metrics.json with train_runtime_sec found.")
+```
+
+**Interpretation.**
+Runtime is **not** a pure function of parameter count: hardware (laptop vs Colab A100), batch settings, and VL vs text stacks matter.
+Loss values are also not directly comparable across families (different tokenizers and sequence realisations); they are diagnostics that the run completed under the matched step budget, not a substitute for LOR metrics.
+When comparing scientific performance, treat runtime as a **cost** axis alongside AUC/recall rather than as a quality metric.
+
+
+# Compact multi-metric leaderboard
+
+```{python}
+#| label: tbl-leaderboard
+#| tbl-cap: "Leaderboard combining ranking, coverage at q90, and fine-tune cost."
+
+rows = []
+for m in MODELS:
+    tr = m["train"]
+    rt = tr.get("train_runtime_sec")
+    rows.append(
+        {
+            "Model": m["label"],
+            "ROC-AUC": roc_auc(m["metrics"]),
+            "Recall@q90": recall_at(m["metrics"], "q90"),
+            "Recall@q95": recall_at(m["metrics"], "q95"),
+            "AP": avg_precision(m["metrics"]),
+            "Fine-tune (min)": (float(rt) / 60.0) if rt is not None else np.nan,
+            "Beats Forecast@q90": (
+                ""
+                if BASE_RECALL is None or recall_at(m["metrics"], "q90") is None
+                else (
+                    "yes"
+                    if recall_at(m["metrics"], "q90") > BASE_RECALL
+                    else "no"
+                )
+            ),
+        }
+    )
+df_lead = pd.DataFrame(rows).sort_values("ROC-AUC", ascending=False)
+df_lead.style.format(
+    {
+        "ROC-AUC": "{:.3f}",
+        "Recall@q90": "{:.3f}",
+        "Recall@q95": "{:.3f}",
+        "AP": "{:.4f}",
+        "Fine-tune (min)": "{:.1f}",
+    },
+    na_rep="n/a",
+)
+```
+
+
+# Summary of empirical findings
+
+1. **Ranking exists without supervision.** Every tested backbone yields ROC-AUC above 0.5 against Actual LOR, with the strongest ranking near **`{python} fmt(roc_auc(best_auc_m["metrics"]))`** (`{python} best_auc_m["label"]`).
+2. **Coverage is threshold-sensitive.** Recall at \(q{=}0.90\) can approach or exceed Forecast LOR for some backbones, but collapses at stricter quantiles—matching the paper’s emphasis on operating-point trade-offs rather than a single accuracy number.
+3. **Scale helps imperfectly.** Moving from ~0.1B to ~7B improves the upper envelope of AUC/recall, yet mid-size models sometimes rival larger ones; architecture and pretraining matter beyond raw parameter count.
+4. **Forecast LOR remains a strong institutional comparator.** Beating it requires accepting a high alarm rate (\(q{=}0.90\)); at \(q{=}0.95/0.99\) the operator baseline is usually harder to beat on recall alone.
+5. **Cost varies widely.** Fine-tune minutes (when logged) differ by more than an order of magnitude across backbones and hardware; results tables should report runtime alongside detection metrics.
+
+These results support the experimental claim of the introduction package: under a **matched** serialise → LoRA → value-token NLL contract, backbone choice meaningfully changes operational ranking and LOR coverage, but does not remove the fundamental rare-event precision–recall tension of NSW1 Actual LOR detection.
+```

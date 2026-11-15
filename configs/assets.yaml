@@ -1,0 +1,19 @@
+# Where the large assets are hosted on the Hugging Face Hub.
+# scripts/download_assets.py reads this file. Pin `revision` to a commit hash
+# (or tag) once published so the paper's exact assets are always retrieved.
+
+data:
+  repo_id: arashlove/aemo-nem-lor
+  repo_type: dataset
+  revision: main
+  local_dir: data/raw
+  sha256:
+    causality_framework_2015-2026_NSW1.csv.gz: c86fa788389e487f489d5da2d765cd9f44f883b14afa259797a8e288bffd71af
+    Actual_LOR_Final.csv.gz: 3e06e9a58ee59686b7e204ad503885a6c2ce8c6370b1774c0a4838b594884e1d
+    FORECAST_LOR_Final.csv.gz: bca82dba403ca1cce11e087bdcab2b74b0f089bc1c4a2fe6dc3760f7cfd81401
+
+weights:
+  repo_id: arashlove/lortrace-adapters
+  repo_type: model
+  revision: main
+  local_dir: weights

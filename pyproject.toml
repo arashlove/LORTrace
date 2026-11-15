@@ -1,0 +1,77 @@
+[project]
+name = "lortrace"
+version = "1.0.0"
+description = "LORTrace: language models for electricity-market stress (AEMO Lack-of-Reserve). Benchmark and interpretability pipelines."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10,<3.13"
+authors = [
+    { name = "Arash Karimadini" },
+    { name = "Kaveh Karimadini" },
+    { name = "Xuyun Zhang" },
+    { name = "Usman Naseem" },
+    { name = "Amin Beheshti" },
+]
+keywords = ["anomaly detection", "large language models", "electricity markets", "AEMO", "LoRA"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+# CPU-only core: preprocessing, evaluation, figures, tests.
+dependencies = [
+    "numpy>=1.24",
+    "pandas>=2.0",
+    "pyarrow>=12.0",
+    "scikit-learn>=1.3",
+    "matplotlib>=3.7",
+    "pyyaml>=6.0",
+    "tqdm>=4.65",
+    "huggingface-hub>=0.30",
+]
+
+[project.optional-dependencies]
+# Fine-tuning and scoring (NVIDIA GPU, CUDA 12.8 wheels). Versions as used for the paper.
+gpu = [
+    "torch==2.8.0",
+    "torchvision==0.23.0",
+    "unsloth==2026.11.4",
+    "unsloth-zoo==2026.11.4",
+    "transformers==4.56.2",
+    "trl==0.22.2",
+    "peft==0.21.3",
+    "accelerate==1.15.0",
+    "bitsandbytes==0.50.2",
+    "xformers==0.0.32.post2",
+]
+# Optional path log-signature features (disabled in the paper's configs).
+signature = ["iisignature>=0.24"]
+
+[dependency-groups]
+dev = ["pytest>=8.0"]
+# Rendering paper/results.qmd with Quarto requires a Jupyter kernel.
+paper = ["jupyter>=1.0", "ipykernel>=6.0", "nbformat>=5.9", "jinja2>=3.1"]
+
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/lortrace"]
+
+[tool.uv]
+default-groups = ["dev"]
+# Lock for the platforms the pipeline was run on.
+environments = ["sys_platform == 'linux'", "sys_platform == 'win32'"]
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu128" }
+torchvision = { index = "pytorch-cu128" }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

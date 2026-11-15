@@ -1,0 +1,140 @@
+# Backbone config: gemma-3-270m (paper Table 2).
+# Identical to configs/base.yaml except model.name and artifacts.
+# Relative paths resolve against the repository root.
+
+seed: 3407
+region: NSW1
+
+data:
+  # AEMO NSW1 5-minute dispatch series (interval-ending timestamps).
+  main_csv: data/raw/causality_framework_2015-2026_NSW1.csv.gz
+  # Lack-Of-Reserve labels: Actual = ground truth, Forecast = AEMO baseline.
+  actual_lor_csv: data/raw/Actual_LOR_Final.csv.gz
+  forecast_lor_csv: data/raw/FORECAST_LOR_Final.csv.gz
+  timestamp_col: date
+  region_col: REGIONID
+
+artifacts:
+  root: outputs
+  processed_dir: outputs/processed
+  model_dir: weights/gemma-3-270m        # adapter at weights/gemma-3-270m/adapter
+  scores_dir: outputs/rescore/gemma-3-270m/scores
+  evaluation_dir: outputs/rescore/gemma-3-270m/evaluation
+
+# Chronological, non-shuffled splits (inclusive date bounds).
+# Actual LOR coverage ends 2024-07-30, so the test window stays inside it.
+splits:
+  train: ["2015-01-01", "2021-12-31"]
+  val:   ["2022-01-01", "2022-12-31"]
+  test:  ["2023-01-01", "2024-07-30"]
+  # Windows straddling a split boundary are dropped; this many extra 5-min
+  # steps are also purged on each side of a boundary to prevent leakage.
+  embargo_steps: 12
+
+windowing:
+  size: 12       # timesteps per window (12 x 5 min = 1 hour)
+  stride: 12     # non-overlapping hourly windows
+
+features:
+  # Raw numeric columns pulled from the main CSV and used to build features.
+  raw_used:
+    - RRP
+    - TOTALDEMAND
+    - TEMPERATURE
+    - AVAILABLEGENERATION
+    - NETINTERCHANGE
+    - TOTALINTERMITTENTGENERATION
+    - UIGF
+    - SEMISCHEDULE_CLEAREDMW
+    - DISPATCHABLELOAD
+    - DEMANDFORECAST
+    - BDU_CLEAREDMW_GEN
+    - BDU_CLEAREDMW_LOAD
+  # Numeric features serialized for every timestep (train-only standard scaling).
+  per_step:
+    - RRP
+    - TOTALDEMAND
+    - TEMPERATURE
+    - AVAILABLEGENERATION
+    - NETINTERCHANGE
+    - TOTALINTERMITTENTGENERATION
+    - reserve_margin
+    - curtailment_gap
+  # Window-level context features (taken at the window's end timestamp).
+  window_level:
+    - hour
+    - dayofweek
+    - month
+    - battery_active
+  # Schema block prepended once per window (identical at train and score time).
+  descriptions:
+    RRP: "NSW regional reference price AUD/MWh (z-scored)"
+    TOTALDEMAND: "NSW total demand MW (z-scored)"
+    TEMPERATURE: "regional temperature C (z-scored)"
+    AVAILABLEGENERATION: "available generation MW (z-scored)"
+    NETINTERCHANGE: "net interchange MW, export positive (z-scored)"
+    TOTALINTERMITTENTGENERATION: "intermittent generation MW (z-scored)"
+    reserve_margin: "AVAILABLEGENERATION - TOTALDEMAND MW (z-scored)"
+    curtailment_gap: "UIGF - SEMISCHEDULE_CLEAREDMW MW (z-scored)"
+    hour: "hour of day at window end, 0-23"
+    dayofweek: "day of week at window end, Mon=0 .. Sun=6"
+    month: "calendar month at window end, 1-12"
+    battery_active: "1 if battery (BDU) is active in the window end interval, else 0"
+  # Columns intentionally excluded from model inputs (documentation only).
+  dropped:
+    REGIONID: constant (NSW1 only)
+    INTERVENTION: constant (always 0)
+    ROP: leaks RRP (near-identical outside intervention rows)
+    DEMAND_AND_NONSCHEDGEN: collinear with TOTALDEMAND
+    DISPATCHABLEGENERATION: collinear with TOTALDEMAND
+
+labels:
+  severity_levels: [1, 2, 3]
+  # Buffer (5-min steps) around excluded LOR labels for semi-supervised
+  # settings. Unused by the paper's unsupervised setting.
+  train_exclusion_buffer_steps: 12
+
+model:
+  # Base checkpoint the published LoRA adapter was trained on.
+  name: unsloth/gemma-3-270m-it-unsloth-bnb-4bit
+  max_seq_length: 4096
+  load_in_4bit: true
+  dtype: null            # null = auto (bf16 on Ampere+, fp16 otherwise)
+  lora:
+    r: 16
+    alpha: 16
+    dropout: 0.0
+    target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
+
+training:
+  # Paper setting: fully unsupervised (no LOR-based filtering of training windows).
+  # Other options: semi_supervised | semi_supervised_forecast | semi_supervised_both
+  setting: unsupervised
+  max_train_windows: 20000
+  # Effective batch 8. Paper used 1 x 8 on 6 GB GPUs and 2 x 4 on A100.
+  per_device_train_batch_size: 1
+  gradient_accumulation_steps: 8
+  learning_rate: 2.0e-4
+  weight_decay: 0.001
+  warmup_steps: 5
+  max_steps: 300
+  num_train_epochs: 1
+  lr_scheduler_type: linear
+  optim: adamw_8bit
+  logging_steps: 10
+
+scoring:
+  n_permutations: 1      # K = 1 in the paper
+  eval_batch_size: 1
+  chunk_size: 512        # windows per checkpoint (enables resume)
+  feature_wise: false
+
+evaluation:
+  threshold_quantiles: [0.90, 0.95, 0.99]
+  event_tolerance_steps: 12
+
+signature:
+  enabled: false
+  depth: 2
+  time_augment: true
+  replace_path: false

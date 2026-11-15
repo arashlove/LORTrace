@@ -1,0 +1,42 @@
+cff-version: 1.2.0
+message: "If you use this code, data or adapters, please cite the dataset below."
+title: "LORTrace: language models for electricity-market stress detection"
+type: software
+version: 1.0.0
+license: MIT
+repository-code: "https://github.com/arashlove/LORTrace"
+authors:
+  - given-names: Arash
+    family-names: Karimadini
+    affiliation: "School of Computing, Macquarie University"
+  - given-names: Kaveh
+    family-names: Karimadini
+    affiliation: "School of Computing, Macquarie University"
+  - given-names: Xuyun
+    family-names: Zhang
+    affiliation: "School of Computing, Macquarie University"
+  - given-names: Usman
+    family-names: Naseem
+    affiliation: "School of Computing, Macquarie University"
+  - given-names: Amin
+    family-names: Beheshti
+    affiliation: "School of Computing, Macquarie University"
+keywords:
+  - anomaly detection
+  - large language models
+  - electricity markets
+  - AEMO
+  - Lack of Reserve
+preferred-citation:
+  type: data
+  title: "AEMO NEM Lack-of-Reserve Dataset"
+  authors:
+    - given-names: Arash
+      family-names: Karimadini
+    - given-names: Kaveh
+      family-names: Karimadini
+  year: 2026
+  publisher:
+    name: "Hugging Face"
+  url: "https://huggingface.co/datasets/arashlove/aemo-nem-lor"
+  # TODO: add the dataset DOI (Hugging Face: Settings -> Generate DOI).
