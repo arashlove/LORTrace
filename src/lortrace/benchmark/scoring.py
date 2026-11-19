@@ -170,13 +170,16 @@ def run_scoring(cfg: Config, split: str, force: bool = False) -> Path:
                 with torch.no_grad():
                     logits = _causal_lm_logits(model, input_ids, attention)
 
+                # With CPU offload (e.g. a 7B model on a 6 GB GPU) the logits can
+                # land on a different device than the inputs; compute the loss there.
+                out_device = logits.device
                 shift_logits = logits[:, :-1, :].contiguous()
-                shift_labels = input_ids[:, 1:].contiguous()
+                shift_labels = input_ids[:, 1:].contiguous().to(out_device)
                 token_nll = loss_fct(
                     shift_logits.transpose(1, 2), shift_labels
                 ).to(torch.float32)  # (B, L-1)
 
-                vmask = value_mask[:, 1:].to(device).to(torch.float32)
+                vmask = value_mask[:, 1:].to(out_device).to(torch.float32)
                 per_sample = (token_nll * vmask).sum(dim=1).cpu().numpy()
                 chunk_scores[b_lo : b_lo + len(batch)] += per_sample
 

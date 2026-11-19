@@ -126,6 +126,53 @@ uv run python scripts/evaluate.py   --config configs/models/gemma-3-270m.yaml
 uv run python scripts/run_pipeline.py --smoke-test   # CPU-only plumbing check
 ```
 
+#### Running on RunPod (optional)
+
+Levels 2 and 3 need an NVIDIA GPU. If you don't have one locally, a
+[RunPod](https://www.runpod.io/) pod works with the same commands. The quick
+version is below; see [`docs/runpod.md`](docs/runpod.md) for the full
+step-by-step guide (pod choice, checks, tmux, progress monitoring, copying
+results off).
+
+**Pod setup.** Pick any PyTorch template with **CUDA 12.8+** (NVIDIA driver
+≥ 570), since the locked PyTorch uses cu128 wheels. A 24 GB GPU (e.g. RTX 4090,
+L4, A5000) runs all nine backbones; the 7B models need ~16 GB+. Attach a network
+volume (~50 GB) mounted at `/workspace` so the environment, data and base
+checkpoints survive pod restarts.
+
+```bash
+cd /workspace
+
+# Keep caches on the persistent volume (the container disk is small)
+export UV_CACHE_DIR=/workspace/.cache/uv
+export HF_HOME=/workspace/.cache/huggingface
+
+# Install uv and clone
+curl -LsSf https://astral.sh/uv/install.sh | sh && source $HOME/.local/bin/env
+git clone https://github.com/arashlove/LORTrace.git && cd LORTrace
+
+# Environment (Python 3.10 + pinned GPU stack in .venv; the template's own torch is not used)
+uv sync --extra gpu
+
+# Data + adapters from the Hugging Face Hub
+uv run python scripts/download_assets.py
+
+# Quick check on one small model, then the full run
+uv run python scripts/reproduce.py --mode rescore --models gemma-3-270m
+uv run python scripts/reproduce.py --mode rescore
+```
+
+`--mode rescore` runs preprocess → score → evaluate for each backbone; metrics and
+per-model plots land in `outputs/rescore/<model>/evaluation/`. If the pod is
+interrupted, re-run the same command and scoring resumes from its last checkpoint.
+Run long jobs inside `tmux` (or with `nohup`) so they survive a dropped SSH or
+web-terminal session.
+
+To build the summary figures, either install [Quarto](https://quarto.org) on the
+pod and run the `quarto render` command from Level 1 with
+`RESULTS_DIR=outputs/rescore`, or copy `outputs/rescore/` back to your machine
+(e.g. `runpodctl send outputs/rescore`) and render there.
+
 ### Method summary
 
 - **Data.** NSW1 5-minute dispatch series 2015–2024 (deduplicated, last record

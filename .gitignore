@@ -25,3 +25,6 @@ unsloth_compiled_cache/
 Thumbs.db
 .vscode/
 .idea/
+
+# Local run logs (may contain local paths)
+*.log
