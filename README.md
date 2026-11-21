@@ -73,7 +73,7 @@ Everything runs through [`scripts/reproduce.py`](scripts/reproduce.py), at
 three levels of cost. Each run saves the exact config it used to
 `outputs/<mode>/<model>/config.yaml`.
 
-#### Level 1: Metrics and figures from the published scores (CPU, minutes)
+#### Level 1: Metrics and figures from the released scores (CPU, minutes)
 
 ```bash
 uv run python scripts/reproduce.py --mode evaluate
@@ -82,16 +82,16 @@ uv run python scripts/reproduce.py --mode evaluate
 Recomputes every metric and per-model plot from `results/<model>/val_test_scores.npz`
 into `outputs/evaluate/<model>/evaluation/`.
 
-Summary figures and tables are built by [`paper/results.qmd`](paper/results.qmd)
+Summary figures and tables are built by [`report/results.qmd`](report/results.qmd)
 (requires [Quarto](https://quarto.org)):
 
 ```bash
-uv sync --group paper
-uv run quarto render paper/results.qmd                       # from results/
-RESULTS_DIR=outputs/rescore uv run quarto render paper/results.qmd   # from your own rescoring run
+uv sync --group report
+uv run quarto render report/results.qmd                       # from results/
+RESULTS_DIR=outputs/rescore uv run quarto render report/results.qmd   # from your own rescoring run
 ```
 
-#### Level 2: Rescore with the published adapters (GPU, hours)
+#### Level 2: Rescore with the released adapters (GPU, hours)
 
 ```bash
 uv sync --extra gpu
@@ -102,8 +102,27 @@ uv run python scripts/reproduce.py --mode rescore --models gemma-3-270m   # or a
 
 The base checkpoints (`unsloth/*`) are downloaded from the Hub on first use.
 Scoring checkpoints every 512 windows; re-running resumes an interrupted run
-(`--force` restarts). Expect close but not bit-identical scores across GPUs and
-CUDA kernels.
+(`--force` restarts).
+
+#### Reproducibility: what to expect
+
+**Reference hardware.** Our reproduction runs use a RunPod **NVIDIA L40S (48 GB)**
+on Linux (CUDA 12.8, PyTorch 2.8.0+cu128, Unsloth 2026.11.4, Transformers 4.56.2,
+bitsandbytes 0.50.2, all pinned in [`uv.lock`](uv.lock)). This is the recommended
+setup for replication.
+
+**Fixed:** the data (sha256-verified), splits, windowing (12 × 5 min, stride 12),
+serialization, the within-step feature permutation (seeded with `seed: 3407`), the
+LoRA adapters and the software versions. Window ordering and labels are identical
+on every machine.
+
+**Not bit-identical:** scores depend on floating-point GPU kernels (4-bit
+dequantization, bf16 matmuls, attention), so different GPU models and drivers give
+slightly different numbers. To reproduce the released reference scores as closely as
+possible, use the reference hardware and the locked environment above.
+
+**Use Linux with an NVIDIA GPU (Ampere or newer, bf16).** `dtype: null` selects
+bf16 on Ampere+ and fp16 on older GPUs (e.g. T4), which can shift scores further.
 
 #### Level 3: Retrain from scratch (GPU, longest)
 
@@ -135,8 +154,10 @@ step-by-step guide (pod choice, checks, tmux, progress monitoring, copying
 results off).
 
 **Pod setup.** Pick any PyTorch template with **CUDA 12.8+** (NVIDIA driver
-≥ 570), since the locked PyTorch uses cu128 wheels. A 24 GB GPU (e.g. RTX 4090,
-L4, A5000) runs all nine backbones; the 7B models need ~16 GB+. Attach a network
+≥ 570), since the locked PyTorch uses cu128 wheels. We use an **L40S (48 GB)**,
+the reference hardware and the cheapest option we found for the full run. Any
+24 GB+ GPU (e.g. RTX 4090, L4, A5000, A40) also runs all nine backbones; the 7B
+models need ~16 GB+. Attach a network
 volume (~50 GB) mounted at `/workspace` so the environment, data and base
 checkpoints survive pod restarts.
 
@@ -214,8 +235,8 @@ and adapters, and add its own configs, scripts and results to this repository.
 ├── src/lortrace/
 │   └── benchmark/             # detection pipeline: preprocessing, serialization, training, scoring, evaluation
 ├── scripts/                   # reproduce.py, download_assets.py and the stage CLIs
-├── results/<model>/           # published scores + metrics
-├── paper/results.qmd          # summary figures and tables
+├── results/<model>/           # released reference scores + metrics
+├── report/results.qmd          # summary figures and tables
 ├── notebooks/lor_labels/      # how the LOR labels were reconstructed from AEMO notices
 ├── data/                      # data/raw/ is filled by download_assets.py
 ├── weights/                   # weights/<model>/adapter/ is filled by download_assets.py

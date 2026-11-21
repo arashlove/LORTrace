@@ -18,7 +18,7 @@ LoRA adapters from the
 
 Nine LoRA adapters, one per backbone, fine-tuned with unsupervised next-token
 prediction on serialized AEMO NSW1 market windows.
-These are the exact adapters that produced the published anomaly scores.
+These are the exact adapters that produced the released reference anomaly scores.
 
 Each folder contains `adapter/` (PEFT adapter + tokenizer) and, where
 available, `training_metrics.json`. The base model is downloaded automatically

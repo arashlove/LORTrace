@@ -1,4 +1,4 @@
-# Backbone config: Qwen2.5-1.5B (paper Table 2).
+# Backbone config: Qwen2.5-1.5B.
 # Identical to configs/base.yaml except model.name and artifacts.
 # Relative paths resolve against the repository root.
 
@@ -91,11 +91,11 @@ features:
 labels:
   severity_levels: [1, 2, 3]
   # Buffer (5-min steps) around excluded LOR labels for semi-supervised
-  # settings. Unused by the paper's unsupervised setting.
+  # settings. Unused in the unsupervised setting.
   train_exclusion_buffer_steps: 12
 
 model:
-  # Base checkpoint the published LoRA adapter was trained on.
+  # Base checkpoint the released LoRA adapter was trained on.
   name: unsloth/Qwen2.5-1.5B-bnb-4bit
   max_seq_length: 4096
   load_in_4bit: true
@@ -107,11 +107,11 @@ model:
     target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
 
 training:
-  # Paper setting: fully unsupervised (no LOR-based filtering of training windows).
+  # Reference setting: fully unsupervised (no LOR-based filtering of training windows).
   # Other options: semi_supervised | semi_supervised_forecast | semi_supervised_both
   setting: unsupervised
   max_train_windows: 20000
-  # Effective batch 8. Paper used 1 x 8 on 6 GB GPUs and 2 x 4 on A100.
+  # Effective batch 8: 1 x 8 on 6 GB GPUs, or 2 x 4 on larger GPUs.
   per_device_train_batch_size: 1
   gradient_accumulation_steps: 8
   learning_rate: 2.0e-4
@@ -124,7 +124,7 @@ training:
   logging_steps: 10
 
 scoring:
-  n_permutations: 1      # K = 1 in the paper
+  n_permutations: 1      # K = 1 (reference setting)
   eval_batch_size: 1
   chunk_size: 512        # windows per checkpoint (enables resume)
   feature_wise: false

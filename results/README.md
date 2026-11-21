@@ -1,6 +1,6 @@
-# Published results
+# Reference results
 
-Reference outputs behind the paper's Tables 5–7 and Figures 1–5, one folder per
+Reference outputs (scores and metrics), one folder per
 backbone:
 
 | File | Content |
@@ -15,8 +15,8 @@ Recompute the metrics and plots from these scores (CPU only):
 uv run python scripts/reproduce.py --mode evaluate
 ```
 
-Rebuild the paper figures and tables from this folder:
+Rebuild the summary figures and tables from this folder:
 
 ```bash
-quarto render paper/results.qmd
+quarto render report/results.qmd
 ```

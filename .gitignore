@@ -14,10 +14,10 @@ weights/*
 
 # Generated outputs
 outputs/
-paper/*.html
-paper/*.pdf
-paper/*_files/
-paper/.quarto/
+report/*.html
+report/*.pdf
+report/*_files/
+report/.quarto/
 unsloth_compiled_cache/
 
 # OS / editors

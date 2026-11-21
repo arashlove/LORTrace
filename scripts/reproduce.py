@@ -1,10 +1,10 @@
-"""Reproduce the paper's results for one or more backbones.
+"""Reproduce the benchmark results for one or more backbones.
 
 Three levels, from cheapest to most expensive:
 
-  evaluate  (CPU, minutes)  Re-run the evaluation on the published anomaly
+  evaluate  (CPU, minutes)  Re-run the evaluation on the released anomaly
                             scores in results/<model>/ -> metrics + plots.
-  rescore   (GPU, hours)    Score val+test windows with the published LoRA
+  rescore   (GPU, hours)    Score val+test windows with the released LoRA
                             adapters in weights/<model>/, then evaluate.
   retrain   (GPU, longest)  Fine-tune each backbone from scratch on the
                             training windows, then score and evaluate.
@@ -34,17 +34,23 @@ MODEL_CONFIGS = ROOT / "configs" / "models"
 SCRIPTS = ROOT / "scripts"
 PROCESSED = "outputs/processed"
 
-# Smallest -> largest (paper Table 2 order).
+# Smallest -> largest.
 SIZE_ORDER = [
     "SmolLM2-135M",
     "gemma-3-270m",
     "SmolLM2-360M",
     "Qwen2.5-0.5B",
     "Qwen2.5-1.5B",
+    "gemma-3-1b-base",
     "SmolLM-1.7B",
+    "SmolLM2-1.7B",
     "gemma-2-2b",
+    "gemma-2-2b-base",
     "mistral-7b-v0.3",
     "Cosmos-Reason1-7B",
+    "Qwen2.5-7B",
+    "Qwen2.5-VL-7B-Instruct",
+    "Llama-3.1-8B",
 ]
 
 
@@ -63,9 +69,9 @@ def write_run_config(model: str, mode: str) -> Path:
     art["processed_dir"] = PROCESSED
     art["evaluation_dir"] = f"{run_dir}/evaluation"
     if mode == "evaluate":
-        art["scores_dir"] = f"results/{model}"          # published scores
+        art["scores_dir"] = f"results/{model}"          # released scores
     elif mode == "rescore":
-        art["model_dir"] = f"weights/{model}"           # published adapter
+        art["model_dir"] = f"weights/{model}"           # released adapter
         art["scores_dir"] = f"{run_dir}/scores"
     elif mode == "retrain":
         art["model_dir"] = f"{run_dir}/model"           # freshly trained adapter
@@ -99,7 +105,7 @@ def process_model(model: str, mode: str, force: bool) -> str:
     cfg_arg = ["--config", str(config)]
 
     if mode == "evaluate":
-        err = require(ROOT / "results" / model / "val_test_scores.npz", "published scores")
+        err = require(ROOT / "results" / model / "val_test_scores.npz", "released scores")
         if err:
             return err
     else:

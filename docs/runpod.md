@@ -1,25 +1,27 @@
 # Running LORTrace on RunPod
 
 Step-by-step guide to reproducing the results on a rented RunPod GPU: download the
-published data and LoRA adapters from Hugging Face, rescore all nine backbones, and
+released data and LoRA adapters from Hugging Face, rescore all nine backbones, and
 build the metrics and figures. Every command is run in the pod's terminal.
 
-This uses `--mode rescore`: the published adapters are used as-is, so **no training
+This uses `--mode rescore`: the released adapters are used as-is, so **no training
 is needed**. (`--mode retrain` is only for checking that training itself
 reproduces, and takes far longer.)
 
 | `--mode` | What it does | Needs |
 |---|---|---|
-| `evaluate` | Metrics + plots from the published scores in `results/` | CPU only |
-| `rescore` | Score with the published adapters, then evaluate | GPU, data + adapters |
+| `evaluate` | Metrics + plots from the released scores in `results/` | CPU only |
+| `rescore` | Score with the released adapters, then evaluate | GPU, data + adapters |
 | `retrain` | Train new adapters, then score and evaluate | GPU, data |
 
 ---
 
 ## 1. Create the pod and check it
 
-1. **Pods → Deploy**, choose a GPU. An **A100 80GB PCIe** is the tested, low-risk
-   choice; an **H100** (SXM or NVL) is faster. Any NVIDIA GPU with 24 GB+ works.
+1. **Pods → Deploy**, choose a GPU. An **L40S (48 GB)** is the reference hardware
+   and the cheapest option for the full run (scoring runs one window at a time, so
+   larger GPUs such as the H100 finish sooner but cost more overall). An **A40** is
+   a cheaper fallback. Any NVIDIA GPU with 24 GB+ works.
    AMD GPUs (MI300X/MI350X) are not supported.
 2. **Template:** RunPod PyTorch, any version with CUDA 12.8 or newer.
 3. **Storage:** ~50 GB is plenty.
@@ -136,7 +138,7 @@ uv run python scripts/reproduce.py --mode rescore --models gemma-3-270m
 ```
 
 This runs preprocess → score → evaluate and should end with `gemma-3-270m  ok`.
-Compare with the published metrics (ROC-AUC ≈ 0.608, AP ≈ 0.0143):
+Compare with the released reference metrics (ROC-AUC ≈ 0.608, AP ≈ 0.0143):
 
 ```bash
 grep -E '"roc_auc"|"average_precision"' \
@@ -145,7 +147,7 @@ grep -E '"roc_auc"|"average_precision"' \
 ```
 
 The speed on the `score` progress bar gives a feel for how long the full run will
-take. Small differences from the published numbers across GPUs are expected.
+take. Small differences from the reference numbers across GPUs are expected.
 
 ## 7. Full run: all 9 models
 
@@ -174,13 +176,13 @@ plots are in `outputs/rescore/<model>/evaluation/`.
 
 ## 8. (Optional) Summary figures and tables
 
-Built with [Quarto](https://quarto.org) from `paper/results.qmd`:
+Built with [Quarto](https://quarto.org) from `report/results.qmd`:
 
 ```bash
 wget -q https://github.com/quarto-dev/quarto-cli/releases/download/v1.6.42/quarto-1.6.42-linux-amd64.deb
 apt-get install -y ./quarto-1.6.42-linux-amd64.deb
-uv sync --extra gpu --group paper
-RESULTS_DIR=outputs/rescore uv run quarto render paper/results.qmd
+uv sync --extra gpu --group report
+RESULTS_DIR=outputs/rescore uv run quarto render report/results.qmd
 ```
 
 Keep `--extra gpu` in that `uv sync`; without it uv removes the GPU packages.
@@ -191,7 +193,7 @@ Any recent Quarto Linux `.deb` from the releases page works. Alternatively, copy
 
 ```bash
 cd /workspace/LORTrace
-tar czf /workspace/lortrace_rescore.tar.gz outputs/rescore paper/ rescore.log
+tar czf /workspace/lortrace_rescore.tar.gz outputs/rescore report/ rescore.log
 runpodctl send /workspace/lortrace_rescore.tar.gz
 ```
 

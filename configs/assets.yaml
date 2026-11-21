@@ -1,6 +1,6 @@
 # Where the large assets are hosted on the Hugging Face Hub.
 # scripts/download_assets.py reads this file. Pin `revision` to a commit hash
-# (or tag) once published so the paper's exact assets are always retrieved.
+# (or tag) once released so the exact reference assets are always retrieved.
 
 data:
   repo_id: arashlove/aemo-nem-lor

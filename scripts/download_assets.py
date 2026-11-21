@@ -31,7 +31,7 @@ def sha256(path: Path) -> str:
 
 def check_repo_id(section: dict, name: str) -> None:
     if section["repo_id"].startswith("YOUR_HF_USERNAME"):
-        sys.exit(f"configs/assets.yaml: set {name}.repo_id to the published Hugging Face repo first.")
+        sys.exit(f"configs/assets.yaml: set {name}.repo_id to the released Hugging Face repo first.")
 
 
 def download_data(spec: dict) -> None:

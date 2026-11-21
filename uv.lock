@@ -1650,7 +1650,7 @@ signature = [
 dev = [
     { name = "pytest", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
 ]
-paper = [
+report = [
     { name = "ipykernel", version = "7.3.0", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version < '3.11' and sys_platform == 'linux') or (python_full_version < '3.11' and sys_platform == 'win32')" },
     { name = "ipykernel", version = "7.4.0", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.11' and sys_platform == 'linux') or (python_full_version >= '3.11' and sys_platform == 'win32')" },
     { name = "jinja2", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
@@ -1684,7 +1684,7 @@ provides-extras = ["gpu", "signature"]
 
 [package.metadata.requires-dev]
 dev = [{ name = "pytest", specifier = ">=8.0" }]
-paper = [
+report = [
     { name = "ipykernel", specifier = ">=6.0" },
     { name = "jinja2", specifier = ">=3.1" },
     { name = "jupyter", specifier = ">=1.0" },

@@ -1,10 +1,10 @@
 # Notebooks
 
-## `lor_labels/` — Lack-of-Reserve label reconstruction (paper Section 2.3)
+## `lor_labels/` — Lack-of-Reserve label reconstruction
 
 These notebooks document how `Actual_LOR_Final.csv` and
 `FORECAST_LOR_Final.csv` were built. You do **not** need to run them to
-reproduce the paper — the resulting label files are published with the data
+reproduce the results — the resulting label files are released with the data
 (`scripts/download_assets.py --data`).
 
 | Notebook | Step |

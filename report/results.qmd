@@ -49,8 +49,8 @@ import os
 
 # Repository root = nearest ancestor holding pyproject.toml.
 REPO = next(p for p in (Path.cwd(), *Path.cwd().parents) if (p / "pyproject.toml").is_file())
-# Published reference results by default; point RESULTS_DIR at a reproduced run,
-# e.g. RESULTS_DIR=outputs/rescore quarto render paper/results.qmd
+# Released reference results by default; point RESULTS_DIR at a reproduced run,
+# e.g. RESULTS_DIR=outputs/rescore quarto render report/results.qmd
 RESULTS_REL = os.environ.get("RESULTS_DIR", "results")
 BACKUP = REPO / RESULTS_REL
 WEIGHTS = REPO / "weights"
@@ -65,11 +65,17 @@ PARAM_ORDER = {
     "SmolLM2-360M": 0.36,
     "Qwen2.5-0.5B": 0.5,
     "Qwen2.5-1.5B": 1.5,
+    "gemma-3-1b-base": 1.0,
     "SmolLM-1.7B": 1.7,
+    "SmolLM2-1.7B": 1.71,
     "gemma-2-2b": 2.0,
+    "gemma-2-2b-base": 2.01,
     "Qwen2.5-3B": 3.0,
     "mistral-7b-v0.3": 7.0,
     "Cosmos-Reason1-7B": 7.1,
+    "Qwen2.5-7B": 7.2,
+    "Qwen2.5-VL-7B-Instruct": 7.25,
+    "Llama-3.1-8B": 8.0,
 }
 
 
@@ -87,7 +93,14 @@ def _pretty(folder: str, train: dict[str, Any] | None) -> str:
         .replace("-bnb-4bit", "")
         .replace("-it", "")
     )
+    # Order matters: substring match, so longer keys (e.g. gemma-2-2b-base) come first.
     mapping = {
+        "gemma-2-2b-base": "Gemma 2 2B (base)",
+        "gemma-3-1b-base": "Gemma 3 1B (base)",
+        "SmolLM2-1.7B": "SmolLM2 1.7B",
+        "Qwen2.5-VL-7B-Instruct": "Qwen2.5-VL 7B Instruct",
+        "Qwen2.5-7B": "Qwen2.5 7B",
+        "Llama-3.1-8B": "Llama 3.1 8B",
         "mistral-7b-v0.3": "Mistral 7B v0.3",
         "Cosmos-Reason1-7B": "Cosmos Reason1 7B",
         "SmolLM-1.7B": "SmolLM 1.7B",
@@ -96,7 +109,7 @@ def _pretty(folder: str, train: dict[str, Any] | None) -> str:
         "Qwen2.5-0.5B": "Qwen2.5 0.5B",
         "Qwen2.5-1.5B": "Qwen2.5 1.5B",
         "Qwen2.5-3B": "Qwen2.5 3B",
-        "gemma-2-2b": "Gemma 2 2B",
+        "gemma-2-2b": "Gemma 2 2B IT",
         "gemma-3-270m": "Gemma 3 270M",
     }
     for key, label in mapping.items():
@@ -705,7 +718,7 @@ df_lead.style.format(
 # Summary of empirical findings
 
 1. **Ranking exists without supervision.** Every tested backbone yields ROC-AUC above 0.5 against Actual LOR, with the strongest ranking near **`{python} fmt(roc_auc(best_auc_m["metrics"]))`** (`{python} best_auc_m["label"]`).
-2. **Coverage is threshold-sensitive.** Recall at \(q{=}0.90\) can approach or exceed Forecast LOR for some backbones, but collapses at stricter quantiles—matching the paper’s emphasis on operating-point trade-offs rather than a single accuracy number.
+2. **Coverage is threshold-sensitive.** Recall at \(q{=}0.90\) can approach or exceed Forecast LOR for some backbones, but collapses at stricter quantiles, which is why operating-point trade-offs matter more than a single accuracy number.
 3. **Scale helps imperfectly.** Moving from ~0.1B to ~7B improves the upper envelope of AUC/recall, yet mid-size models sometimes rival larger ones; architecture and pretraining matter beyond raw parameter count.
 4. **Forecast LOR remains a strong institutional comparator.** Beating it requires accepting a high alarm rate (\(q{=}0.90\)); at \(q{=}0.95/0.99\) the operator baseline is usually harder to beat on recall alone.
 5. **Cost varies widely.** Fine-tune minutes (when logged) differ by more than an order of magnitude across backbones and hardware; results tables should report runtime alongside detection metrics.
