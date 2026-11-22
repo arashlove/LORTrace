@@ -18,5 +18,5 @@ uv run python scripts/reproduce.py --mode evaluate
 Rebuild the summary figures and tables from this folder:
 
 ```bash
-quarto render report/results.qmd
+uv run python scripts/make_figures.py      # -> outputs/figures/ (PNG, PDF, CSV)
 ```

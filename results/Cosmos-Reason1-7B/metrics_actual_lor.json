@@ -13,24 +13,24 @@
     0.99
   ],
   "thresholds": {
-    "q90": 520.2412414550781,
-    "q95": 547.6378326416016,
-    "q99": 600.7648712158203
+    "q90": 519.0131103515625,
+    "q95": 546.7970581054688,
+    "q99": 600.0385998535158
   },
   "primary_quantile": "q95",
   "n_eval_labeled": 22602,
   "n_test_labeled": 22602,
   "ranking_metrics": {
-    "roc_auc": 0.673155393219935,
-    "average_precision": 0.01916281060441221,
+    "roc_auc": 0.6748617383353444,
+    "average_precision": 0.019327476882562086,
     "precision_at_k": 0.016736401673640166,
     "recall_at_k": 0.016736401673640166
   },
   "by_quantile": {
     "q90": {
-      "threshold": 520.2412414550781,
+      "threshold": 519.0131103515625,
       "binary_detection": {
-        "threshold": 520.2412414550781,
+        "threshold": 519.0131103515625,
         "n": 22602,
         "n_positive": 239,
         "tp": 52,
@@ -42,8 +42,8 @@
         "f1": 0.0416,
         "false_positive_rate": 0.09877923355542638,
         "specificity": 0.9012207664445736,
-        "roc_auc": 0.673155393219935,
-        "average_precision": 0.01916281060441221,
+        "roc_auc": 0.6748617383353444,
+        "average_precision": 0.019327476882562086,
         "precision_at_k": 0.016736401673640166,
         "recall_at_k": 0.016736401673640166
       },
@@ -68,8 +68,8 @@
         "n_events": 85,
         "events_detected": 37,
         "event_recall": 0.43529411764705883,
-        "event_precision": 0.038920831490490936,
-        "event_f1": 0.07145286766077445,
+        "event_precision": 0.03936311366651924,
+        "event_f1": 0.07219749621801758,
         "n_predicted_positive": 2261
       },
       "anomaly_detection_matrix": {
@@ -100,30 +100,30 @@
       }
     },
     "q95": {
-      "threshold": 547.6378326416016,
+      "threshold": 546.7970581054688,
       "binary_detection": {
-        "threshold": 547.6378326416016,
+        "threshold": 546.7970581054688,
         "n": 22602,
         "n_positive": 239,
-        "tp": 26,
-        "fp": 1105,
-        "fn": 213,
-        "tn": 21258,
-        "precision": 0.022988505747126436,
-        "recall": 0.1087866108786611,
-        "f1": 0.03795620437956205,
-        "false_positive_rate": 0.049411975137503915,
-        "specificity": 0.950588024862496,
-        "roc_auc": 0.673155393219935,
-        "average_precision": 0.01916281060441221,
+        "tp": 27,
+        "fp": 1104,
+        "fn": 212,
+        "tn": 21259,
+        "precision": 0.023872679045092837,
+        "recall": 0.11297071129707113,
+        "f1": 0.03941605839416058,
+        "false_positive_rate": 0.049367258417922465,
+        "specificity": 0.9506327415820776,
+        "roc_auc": 0.6748617383353444,
+        "average_precision": 0.019327476882562086,
         "precision_at_k": 0.016736401673640166,
         "recall_at_k": 0.016736401673640166
       },
       "per_severity_recall": {
         "LOR1": {
           "n": 196,
-          "detected": 22,
-          "recall": 0.11224489795918367
+          "detected": 23,
+          "recall": 0.11734693877551021
         },
         "LOR2": {
           "n": 43,
@@ -140,8 +140,8 @@
         "n_events": 85,
         "events_detected": 26,
         "event_recall": 0.3058823529411765,
-        "event_precision": 0.040671971706454466,
-        "event_f1": 0.07179733461399929,
+        "event_precision": 0.04155614500442087,
+        "event_f1": 0.07317146193227748,
         "n_predicted_positive": 1131
       },
       "anomaly_detection_matrix": {
@@ -157,14 +157,14 @@
         ],
         "matrix": [
           [
-            21258,
-            174,
+            21259,
+            173,
             39,
             0
           ],
           [
-            1105,
-            22,
+            1104,
+            23,
             4,
             0
           ]
@@ -172,9 +172,9 @@
       }
     },
     "q99": {
-      "threshold": 600.7648712158203,
+      "threshold": 600.0385998535158,
       "binary_detection": {
-        "threshold": 600.7648712158203,
+        "threshold": 600.0385998535158,
         "n": 22602,
         "n_positive": 239,
         "tp": 4,
@@ -186,8 +186,8 @@
         "f1": 0.017167381974248927,
         "false_positive_rate": 0.009971828466663685,
         "specificity": 0.9900281715333363,
-        "roc_auc": 0.673155393219935,
-        "average_precision": 0.01916281060441221,
+        "roc_auc": 0.6748617383353444,
+        "average_precision": 0.019327476882562086,
         "precision_at_k": 0.016736401673640166,
         "recall_at_k": 0.016736401673640166
       },
@@ -244,30 +244,30 @@
       }
     }
   },
-  "threshold": 547.6378326416016,
+  "threshold": 546.7970581054688,
   "binary_detection": {
-    "threshold": 547.6378326416016,
+    "threshold": 546.7970581054688,
     "n": 22602,
     "n_positive": 239,
-    "tp": 26,
-    "fp": 1105,
-    "fn": 213,
-    "tn": 21258,
-    "precision": 0.022988505747126436,
-    "recall": 0.1087866108786611,
-    "f1": 0.03795620437956205,
-    "false_positive_rate": 0.049411975137503915,
-    "specificity": 0.950588024862496,
-    "roc_auc": 0.673155393219935,
-    "average_precision": 0.01916281060441221,
+    "tp": 27,
+    "fp": 1104,
+    "fn": 212,
+    "tn": 21259,
+    "precision": 0.023872679045092837,
+    "recall": 0.11297071129707113,
+    "f1": 0.03941605839416058,
+    "false_positive_rate": 0.049367258417922465,
+    "specificity": 0.9506327415820776,
+    "roc_auc": 0.6748617383353444,
+    "average_precision": 0.019327476882562086,
     "precision_at_k": 0.016736401673640166,
     "recall_at_k": 0.016736401673640166
   },
   "per_severity_recall": {
     "LOR1": {
       "n": 196,
-      "detected": 22,
-      "recall": 0.11224489795918367
+      "detected": 23,
+      "recall": 0.11734693877551021
     },
     "LOR2": {
       "n": 43,
@@ -284,8 +284,8 @@
     "n_events": 85,
     "events_detected": 26,
     "event_recall": 0.3058823529411765,
-    "event_precision": 0.040671971706454466,
-    "event_f1": 0.07179733461399929,
+    "event_precision": 0.04155614500442087,
+    "event_f1": 0.07317146193227748,
     "n_predicted_positive": 1131
   },
   "anomaly_detection_matrix": {
@@ -301,14 +301,14 @@
     ],
     "matrix": [
       [
-        21258,
-        174,
+        21259,
+        173,
         39,
         0
       ],
       [
-        1105,
-        22,
+        1104,
+        23,
         4,
         0
       ]

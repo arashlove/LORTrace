@@ -13,45 +13,45 @@
     0.99
   ],
   "thresholds": {
-    "q90": 520.2412414550781,
-    "q95": 547.6378326416016,
-    "q99": 600.7648712158203
+    "q90": 519.0131103515625,
+    "q95": 546.7970581054688,
+    "q99": 600.0385998535158
   },
   "primary_quantile": "q95",
   "n_eval_labeled": 22602,
   "n_test_labeled": 22602,
   "ranking_metrics": {
-    "roc_auc": 0.5321300893783577,
-    "average_precision": 0.0781716650571491,
+    "roc_auc": 0.5324321569790035,
+    "average_precision": 0.07818214749925925,
     "precision_at_k": 0.0927555856465809,
     "recall_at_k": 0.0927555856465809
   },
   "by_quantile": {
     "q90": {
-      "threshold": 520.2412414550781,
+      "threshold": 519.0131103515625,
       "binary_detection": {
-        "threshold": 520.2412414550781,
+        "threshold": 519.0131103515625,
         "n": 22602,
         "n_positive": 1477,
-        "tp": 193,
-        "fp": 2068,
-        "fn": 1284,
-        "tn": 19057,
-        "precision": 0.08536045997346307,
-        "recall": 0.13067027758970887,
-        "f1": 0.1032637774210808,
-        "false_positive_rate": 0.09789349112426035,
-        "specificity": 0.9021065088757396,
-        "roc_auc": 0.5321300893783577,
-        "average_precision": 0.0781716650571491,
+        "tp": 194,
+        "fp": 2067,
+        "fn": 1283,
+        "tn": 19058,
+        "precision": 0.08580274214949138,
+        "recall": 0.13134732566012186,
+        "f1": 0.1037988228999465,
+        "false_positive_rate": 0.09784615384615385,
+        "specificity": 0.9021538461538462,
+        "roc_auc": 0.5324321569790035,
+        "average_precision": 0.07818214749925925,
         "precision_at_k": 0.0927555856465809,
         "recall_at_k": 0.0927555856465809
       },
       "per_severity_recall": {
         "LOR1": {
           "n": 1002,
-          "detected": 108,
-          "recall": 0.10778443113772455
+          "detected": 109,
+          "recall": 0.10878243512974052
         },
         "LOR2": {
           "n": 432,
@@ -66,10 +66,10 @@
       },
       "event_detection": {
         "n_events": 193,
-        "events_detected": 69,
-        "event_recall": 0.35751295336787564,
+        "events_detected": 70,
+        "event_recall": 0.3626943005181347,
         "event_precision": 0.11012826183104821,
-        "event_f1": 0.16838669842109905,
+        "event_f1": 0.16895510524555682,
         "n_predicted_positive": 2261
       },
       "anomaly_detection_matrix": {
@@ -85,14 +85,14 @@
         ],
         "matrix": [
           [
-            19057,
-            894,
+            19058,
+            893,
             363,
             27
           ],
           [
-            2068,
-            108,
+            2067,
+            109,
             69,
             16
           ]
@@ -100,22 +100,22 @@
       }
     },
     "q95": {
-      "threshold": 547.6378326416016,
+      "threshold": 546.7970581054688,
       "binary_detection": {
-        "threshold": 547.6378326416016,
+        "threshold": 546.7970581054688,
         "n": 22602,
         "n_positive": 1477,
-        "tp": 103,
-        "fp": 1028,
-        "fn": 1374,
-        "tn": 20097,
-        "precision": 0.09106984969053934,
-        "recall": 0.06973595125253892,
-        "f1": 0.07898773006134968,
-        "false_positive_rate": 0.04866272189349113,
-        "specificity": 0.9513372781065089,
-        "roc_auc": 0.5321300893783577,
-        "average_precision": 0.0781716650571491,
+        "tp": 101,
+        "fp": 1030,
+        "fn": 1376,
+        "tn": 20095,
+        "precision": 0.08930150309460655,
+        "recall": 0.06838185511171294,
+        "f1": 0.07745398773006135,
+        "false_positive_rate": 0.04875739644970414,
+        "specificity": 0.9512426035502959,
+        "roc_auc": 0.5324321569790035,
+        "average_precision": 0.07818214749925925,
         "precision_at_k": 0.0927555856465809,
         "recall_at_k": 0.0927555856465809
       },
@@ -127,8 +127,8 @@
         },
         "LOR2": {
           "n": 432,
-          "detected": 39,
-          "recall": 0.09027777777777778
+          "detected": 37,
+          "recall": 0.08564814814814815
         },
         "LOR3": {
           "n": 43,
@@ -138,10 +138,10 @@
       },
       "event_detection": {
         "n_events": 193,
-        "events_detected": 56,
-        "event_recall": 0.29015544041450775,
-        "event_precision": 0.1273209549071618,
-        "event_f1": 0.1769818277587569,
+        "events_detected": 54,
+        "event_recall": 0.27979274611398963,
+        "event_precision": 0.125552608311229,
+        "event_f1": 0.17332730560578663,
         "n_predicted_positive": 1131
       },
       "anomaly_detection_matrix": {
@@ -157,24 +157,24 @@
         ],
         "matrix": [
           [
-            20097,
+            20095,
             945,
-            393,
+            395,
             36
           ],
           [
-            1028,
+            1030,
             57,
-            39,
+            37,
             7
           ]
         ]
       }
     },
     "q99": {
-      "threshold": 600.7648712158203,
+      "threshold": 600.0385998535158,
       "binary_detection": {
-        "threshold": 600.7648712158203,
+        "threshold": 600.0385998535158,
         "n": 22602,
         "n_positive": 1477,
         "tp": 32,
@@ -186,8 +186,8 @@
         "f1": 0.03755868544600939,
         "false_positive_rate": 0.009230769230769232,
         "specificity": 0.9907692307692307,
-        "roc_auc": 0.5321300893783577,
-        "average_precision": 0.0781716650571491,
+        "roc_auc": 0.5324321569790035,
+        "average_precision": 0.07818214749925925,
         "precision_at_k": 0.0927555856465809,
         "recall_at_k": 0.0927555856465809
       },
@@ -212,8 +212,8 @@
         "n_events": 193,
         "events_detected": 25,
         "event_recall": 0.12953367875647667,
-        "event_precision": 0.17180616740088106,
-        "event_f1": 0.1477048931980003,
+        "event_precision": 0.1762114537444934,
+        "event_f1": 0.14930944382232175,
         "n_predicted_positive": 227
       },
       "anomaly_detection_matrix": {
@@ -244,22 +244,22 @@
       }
     }
   },
-  "threshold": 547.6378326416016,
+  "threshold": 546.7970581054688,
   "binary_detection": {
-    "threshold": 547.6378326416016,
+    "threshold": 546.7970581054688,
     "n": 22602,
     "n_positive": 1477,
-    "tp": 103,
-    "fp": 1028,
-    "fn": 1374,
-    "tn": 20097,
-    "precision": 0.09106984969053934,
-    "recall": 0.06973595125253892,
-    "f1": 0.07898773006134968,
-    "false_positive_rate": 0.04866272189349113,
-    "specificity": 0.9513372781065089,
-    "roc_auc": 0.5321300893783577,
-    "average_precision": 0.0781716650571491,
+    "tp": 101,
+    "fp": 1030,
+    "fn": 1376,
+    "tn": 20095,
+    "precision": 0.08930150309460655,
+    "recall": 0.06838185511171294,
+    "f1": 0.07745398773006135,
+    "false_positive_rate": 0.04875739644970414,
+    "specificity": 0.9512426035502959,
+    "roc_auc": 0.5324321569790035,
+    "average_precision": 0.07818214749925925,
     "precision_at_k": 0.0927555856465809,
     "recall_at_k": 0.0927555856465809
   },
@@ -271,8 +271,8 @@
     },
     "LOR2": {
       "n": 432,
-      "detected": 39,
-      "recall": 0.09027777777777778
+      "detected": 37,
+      "recall": 0.08564814814814815
     },
     "LOR3": {
       "n": 43,
@@ -282,10 +282,10 @@
   },
   "event_detection": {
     "n_events": 193,
-    "events_detected": 56,
-    "event_recall": 0.29015544041450775,
-    "event_precision": 0.1273209549071618,
-    "event_f1": 0.1769818277587569,
+    "events_detected": 54,
+    "event_recall": 0.27979274611398963,
+    "event_precision": 0.125552608311229,
+    "event_f1": 0.17332730560578663,
     "n_predicted_positive": 1131
   },
   "anomaly_detection_matrix": {
@@ -301,15 +301,15 @@
     ],
     "matrix": [
       [
-        20097,
+        20095,
         945,
-        393,
+        395,
         36
       ],
       [
-        1028,
+        1030,
         57,
-        39,
+        37,
         7
       ]
     ]

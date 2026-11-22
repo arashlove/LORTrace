@@ -5,7 +5,7 @@
 data:
   repo_id: arashlove/aemo-nem-lor
   repo_type: dataset
-  revision: main
+  revision: 3e0c4ce644084af8177443661df64f5b799cd17c
   local_dir: data/raw
   sha256:
     causality_framework_2015-2026_NSW1.csv.gz: c86fa788389e487f489d5da2d765cd9f44f883b14afa259797a8e288bffd71af
@@ -15,5 +15,5 @@ data:
 weights:
   repo_id: arashlove/lortrace-adapters
   repo_type: model
-  revision: main
+  revision: e37d5116a12173a1e2b6d9eb6a42c0bf3e7456ce
   local_dir: weights

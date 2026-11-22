@@ -1,7 +1,7 @@
 # Running LORTrace on RunPod
 
 Step-by-step guide to reproducing the results on a rented RunPod GPU: download the
-released data and LoRA adapters from Hugging Face, rescore all nine backbones, and
+released data and LoRA adapters from Hugging Face, rescore all fifteen backbones, and
 build the metrics and figures. Every command is run in the pod's terminal.
 
 This uses `--mode rescore`: the released adapters are used as-is, so **no training
@@ -24,7 +24,7 @@ reproduces, and takes far longer.)
    a cheaper fallback. Any NVIDIA GPU with 24 GB+ works.
    AMD GPUs (MI300X/MI350X) are not supported.
 2. **Template:** RunPod PyTorch, any version with CUDA 12.8 or newer.
-3. **Storage:** ~50 GB is plenty.
+3. **Storage:** ~80 GB (base models ~40 GB, environment, data and outputs).
 4. **Deploy**, wait for **Running**, then **Connect → Web Terminal** (or SSH).
 
 ```bash
@@ -105,13 +105,13 @@ uv run python scripts/download_assets.py
 | Asset | Hugging Face repo | Saved to |
 |---|---|---|
 | Data: 3 `.csv.gz` files, ~80 MB (sha256-verified) | [`arashlove/aemo-nem-lor`](https://huggingface.co/datasets/arashlove/aemo-nem-lor) | `data/raw/` |
-| LoRA adapters for all 9 backbones, ~760 MB | [`arashlove/lortrace-adapters`](https://huggingface.co/arashlove/lortrace-adapters) | `weights/<model>/adapter/` |
+| LoRA adapters for all 15 backbones, ~1.6 GB | [`arashlove/lortrace-adapters`](https://huggingface.co/arashlove/lortrace-adapters) | `weights/<model>/adapter/` |
 
 Verify:
 
 ```bash
 ls -lh data/raw/*.csv.gz                              # 3 files
-ls weights/*/adapter/adapter_config.json | wc -l      # 9
+ls weights/*/adapter/adapter_config.json | wc -l      # 15
 ```
 
 If you get a `401` or "gated repo" error, log in with a read token from
@@ -122,7 +122,7 @@ uv run huggingface-cli login
 ```
 
 The **base models** (`unsloth/...-bnb-4bit`) are downloaded automatically the first
-time each backbone is scored. To fetch them all up front instead (~20 GB):
+time each backbone is scored. To fetch them all up front instead (~40 GB):
 
 ```bash
 for f in configs/models/*.yaml; do
@@ -138,7 +138,7 @@ uv run python scripts/reproduce.py --mode rescore --models gemma-3-270m
 ```
 
 This runs preprocess → score → evaluate and should end with `gemma-3-270m  ok`.
-Compare with the released reference metrics (ROC-AUC ≈ 0.608, AP ≈ 0.0143):
+Compare with the released reference metrics (ROC-AUC ≈ 0.607, AP ≈ 0.0142):
 
 ```bash
 grep -E '"roc_auc"|"average_precision"' \
@@ -149,21 +149,22 @@ grep -E '"roc_auc"|"average_precision"' \
 The speed on the `score` progress bar gives a feel for how long the full run will
 take. Small differences from the reference numbers across GPUs are expected.
 
-## 7. Full run: all 9 models
+## 7. Full run: all 15 models
 
 ```bash
 cd /workspace/LORTrace
 uv run python scripts/reproduce.py --mode rescore 2>&1 | tee rescore.log
 ```
 
-Backbones run smallest first; the two 7B models (`mistral-7b-v0.3`,
-`Cosmos-Reason1-7B`) come last and take most of the time. You can detach
+Backbones run smallest first; the five 7B/8B models (`mistral-7b-v0.3`,
+`Cosmos-Reason1-7B`, `Qwen2.5-7B`, `Qwen2.5-VL-7B-Instruct`, `Llama-3.1-8B`) come
+last and take most of the time. You can detach
 (`Ctrl+b`, `d`) and close the browser.
 
 Check progress from any terminal:
 
 ```bash
-grep "===" /workspace/LORTrace/rescore.log    # current model, e.g. [4/9]
+grep "===" /workspace/LORTrace/rescore.log    # current model, e.g. [4/15]
 tail -5 /workspace/LORTrace/rescore.log
 nvidia-smi                                     # GPU should be busy
 ```
@@ -176,24 +177,19 @@ plots are in `outputs/rescore/<model>/evaluation/`.
 
 ## 8. (Optional) Summary figures and tables
 
-Built with [Quarto](https://quarto.org) from `report/results.qmd`:
-
 ```bash
-wget -q https://github.com/quarto-dev/quarto-cli/releases/download/v1.6.42/quarto-1.6.42-linux-amd64.deb
-apt-get install -y ./quarto-1.6.42-linux-amd64.deb
-uv sync --extra gpu --group report
-RESULTS_DIR=outputs/rescore uv run quarto render report/results.qmd
+uv run python scripts/make_figures.py --results outputs/rescore --out outputs/figures_rescore
 ```
 
-Keep `--extra gpu` in that `uv sync`; without it uv removes the GPU packages.
-Any recent Quarto Linux `.deb` from the releases page works. Alternatively, copy
-`outputs/rescore/` to your own machine and render there.
+Writes the summary figures (PNG + PDF) and tables (CSV) to `outputs/figures_rescore/`
+(CPU only, about a minute). Alternatively, copy `outputs/rescore/` to your own
+machine and run it there.
 
 ## 9. Copy the results off the pod
 
 ```bash
 cd /workspace/LORTrace
-tar czf /workspace/lortrace_rescore.tar.gz outputs/rescore report/ rescore.log
+tar czf /workspace/lortrace_rescore.tar.gz outputs/rescore outputs/figures_rescore rescore.log
 runpodctl send /workspace/lortrace_rescore.tar.gz
 ```
 

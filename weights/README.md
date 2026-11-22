@@ -16,7 +16,7 @@ tags:
 LoRA adapters from the
 [LORTrace](https://github.com/arashlove/LORTrace) project.
 
-Nine LoRA adapters, one per backbone, fine-tuned with unsupervised next-token
+Fifteen LoRA adapters, one per backbone, fine-tuned with unsupervised next-token
 prediction on serialized AEMO NSW1 market windows.
 These are the exact adapters that produced the released reference anomaly scores.
 
@@ -30,16 +30,28 @@ from the Hub when the adapter is loaded (see `adapter/adapter_config.json`).
 | `gemma-3-270m` | `unsloth/gemma-3-270m-it-unsloth-bnb-4bit` | Gemma Terms of Use |
 | `SmolLM2-360M` | `unsloth/SmolLM2-360M-bnb-4bit` | Apache-2.0 |
 | `Qwen2.5-0.5B` | `unsloth/Qwen2.5-0.5B-bnb-4bit` | Apache-2.0 |
+| `gemma-3-1b-base` | `unsloth/gemma-3-1b-pt-unsloth-bnb-4bit` | Gemma Terms of Use |
 | `Qwen2.5-1.5B` | `unsloth/Qwen2.5-1.5B-bnb-4bit` | Apache-2.0 |
 | `SmolLM-1.7B` | `unsloth/smollm-1.7b-bnb-4bit` | Apache-2.0 |
+| `SmolLM2-1.7B` | `unsloth/SmolLM2-1.7B-bnb-4bit` | Apache-2.0 |
 | `gemma-2-2b` | `unsloth/gemma-2-2b-it-bnb-4bit` | Gemma Terms of Use |
+| `gemma-2-2b-base` | `unsloth/gemma-2-2b-bnb-4bit` | Gemma Terms of Use |
 | `mistral-7b-v0.3` | `unsloth/mistral-7b-v0.3-bnb-4bit` | Apache-2.0 |
 | `Cosmos-Reason1-7B` | `unsloth/Cosmos-Reason1-7B-unsloth-bnb-4bit` | NVIDIA Open Model License |
+| `Qwen2.5-7B` | `unsloth/Qwen2.5-7B-bnb-4bit` | Apache-2.0 |
+| `Qwen2.5-VL-7B-Instruct` | `unsloth/Qwen2.5-VL-7B-Instruct-unsloth-bnb-4bit` | Apache-2.0 |
+| `Llama-3.1-8B` | `unsloth/Meta-Llama-3.1-8B-bnb-4bit` | Llama 3.1 Community License |
 
 Each adapter is a derivative of its base model and is distributed under that
 base model's license terms. The Gemma-derived adapters are subject to the
 [Gemma Terms of Use](https://ai.google.dev/gemma/terms), including its use
-restrictions.
+restrictions. The `Llama-3.1-8B` adapter is subject to the
+[Llama 3.1 Community License](https://www.llama.com/llama3_1/license/) and its
+Acceptable Use Policy. Built with Llama.
+
+The adapters for `gemma-3-1b-base`, `SmolLM2-1.7B`, `gemma-2-2b`, `gemma-2-2b-base`,
+`Qwen2.5-7B`, `Qwen2.5-VL-7B-Instruct` and `Llama-3.1-8B` were trained on an
+NVIDIA L40S with the locked environment in the repository's `uv.lock`.
 
 ## Training configuration (all backbones)
 

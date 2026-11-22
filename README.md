@@ -11,7 +11,7 @@ Market (NEM) from AEMO five-minute dispatch data.
 |---|---|
 | Code, configs, reference scores and metrics | this repository |
 | Data: AEMO NSW1 series + NEM LOR labels (~80 MB) | [`arashlove/aemo-nem-lor`](https://huggingface.co/datasets/arashlove/aemo-nem-lor) (Hugging Face dataset) |
-| LoRA adapters for all 9 backbones (~760 MB) | [`arashlove/lortrace-adapters`](https://huggingface.co/arashlove/lortrace-adapters) (Hugging Face model) |
+| LoRA adapters for all 15 backbones (~1.6 GB) | [`arashlove/lortrace-adapters`](https://huggingface.co/arashlove/lortrace-adapters) (Hugging Face model) |
 
 Repo ids and pinned revisions live in [`configs/assets.yaml`](configs/assets.yaml);
 [`scripts/download_assets.py`](scripts/download_assets.py) fetches and verifies them.
@@ -44,7 +44,7 @@ in [`uv.lock`](uv.lock).
 We adapt the AnoLLM serialize → fine-tune → likelihood recipe
 ([Tsai et al., ICLR 2025](https://github.com/amazon-science/AnoLLM-large-language-models-for-tabular-anomaly-detection)) from
 independent tabular rows to ordered five-minute market windows from the
-NEM's NSW1 region. Nine pretrained backbones (135M–7B parameters) are
+NEM's NSW1 region. Fifteen pretrained backbones (135M–8B parameters) are
 LoRA-fine-tuned without supervision and score each one-hour window by
 value-token negative log-likelihood. Scores are evaluated against reconstructed
 **Actual LOR** events, with AEMO **Forecast LOR** notices as an institutional
@@ -54,18 +54,26 @@ baseline.
 
 Pooled validation + test set: 22,602 one-hour windows, 239 Actual LOR (1.06%).
 Recall at model-specific score quantiles; Forecast LOR recall = 0.243.
+All scores computed on the reference NVIDIA L40S (see
+[Reproducibility](#reproducibility-what-to-expect)).
 
 | Backbone | ROC-AUC | AP | Recall q90 | Recall q95 | Recall q99 |
 |---|---|---|---|---|---|
-| SmolLM2 135M | 0.626 | 0.0136 | 0.117 | 0.025 | 0.000 |
-| Gemma 3 270M | 0.608 | 0.0143 | 0.184 | 0.054 | 0.000 |
-| SmolLM2 360M | 0.574 | 0.0126 | 0.130 | 0.038 | 0.000 |
-| Qwen2.5 0.5B | 0.660 | 0.0182 | 0.226 | 0.071 | 0.013 |
-| Qwen2.5 1.5B | 0.671 | 0.0180 | 0.213 | 0.096 | 0.013 |
-| SmolLM 1.7B | 0.640 | 0.0154 | 0.146 | 0.050 | 0.000 |
-| Gemma 2 2B | 0.665 | 0.0255 | 0.276 | 0.167 | 0.042 |
-| **Mistral 7B v0.3** | **0.692** | **0.0344** | **0.297** | **0.226** | **0.084** |
-| Cosmos Reason1 7B | 0.673 | 0.0192 | 0.218 | 0.109 | 0.017 |
+| SmolLM2 135M | 0.627 | 0.0136 | 0.113 | 0.029 | 0.000 |
+| Gemma 3 270M | 0.607 | 0.0142 | 0.163 | 0.059 | 0.000 |
+| SmolLM2 360M | 0.574 | 0.0126 | 0.126 | 0.042 | 0.000 |
+| Qwen2.5 0.5B | 0.660 | 0.0182 | 0.226 | 0.075 | 0.013 |
+| Gemma 3 1B (base) | 0.597 | 0.0135 | 0.146 | 0.038 | 0.000 |
+| Qwen2.5 1.5B | 0.671 | 0.0180 | 0.213 | 0.092 | 0.013 |
+| SmolLM 1.7B | 0.641 | 0.0154 | 0.146 | 0.046 | 0.000 |
+| SmolLM2 1.7B | 0.592 | 0.0126 | 0.084 | 0.021 | 0.000 |
+| Gemma 2 2B IT | 0.622 | 0.0169 | 0.205 | 0.113 | 0.025 |
+| Gemma 2 2B (base) | 0.618 | 0.0152 | 0.192 | 0.042 | 0.000 |
+| **Mistral 7B v0.3** | **0.692** | **0.0347** | **0.289** | **0.222** | **0.088** |
+| Cosmos Reason1 7B | 0.675 | 0.0193 | 0.218 | 0.113 | 0.017 |
+| Qwen2.5 7B | 0.629 | 0.0153 | 0.180 | 0.054 | 0.004 |
+| Qwen2.5-VL 7B Instruct | 0.617 | 0.0151 | 0.176 | 0.059 | 0.000 |
+| Llama 3.1 8B | 0.598 | 0.0142 | 0.172 | 0.042 | 0.000 |
 
 ### Reproducing the results
 
@@ -82,21 +90,33 @@ uv run python scripts/reproduce.py --mode evaluate
 Recomputes every metric and per-model plot from `results/<model>/val_test_scores.npz`
 into `outputs/evaluate/<model>/evaluation/`.
 
-Summary figures and tables are built by [`report/results.qmd`](report/results.qmd)
-(requires [Quarto](https://quarto.org)):
+Build the summary figures (PNG + PDF) and tables (CSV) across all backbones,
+also on CPU in about a minute:
 
 ```bash
-uv sync --group report
-uv run quarto render report/results.qmd                       # from results/
-RESULTS_DIR=outputs/rescore uv run quarto render report/results.qmd   # from your own rescoring run
+uv run python scripts/make_figures.py                          # from results/ -> outputs/figures/
+uv run python scripts/make_figures.py --results outputs/rescore --out outputs/figures_rescore
 ```
+
+| Output | Content |
+|---|---|
+| `fig1_roc_auc` | ROC-AUC per backbone |
+| `fig2_recall_quantiles` | Recall at q90 / q95 / q99 vs Forecast LOR |
+| `fig3_precision_recall_q90` | Precision vs recall at q90 |
+| `fig4_severity_q90` | LOR1 / LOR2 recall at q90 vs Forecast LOR |
+| `fig5_score_distributions` | Score distributions with quantile thresholds |
+| `table_ranking`, `table_precision_f1`, `table_severity`, `table_training` | The numbers behind the figures |
+
+An optional HTML report with the same figures is in
+[`report/results.qmd`](report/results.qmd) (needs [Quarto](https://quarto.org) and
+`uv sync --group report`; then `uv run quarto render report/results.qmd`).
 
 #### Level 2: Rescore with the released adapters (GPU, hours)
 
 ```bash
 uv sync --extra gpu
 uv run python scripts/download_assets.py            # data + adapters from the Hugging Face Hub
-uv run python scripts/reproduce.py --mode rescore   # all 9 backbones, smallest first
+uv run python scripts/reproduce.py --mode rescore   # all 15 backbones, smallest first
 uv run python scripts/reproduce.py --mode rescore --models gemma-3-270m   # or a subset
 ```
 
@@ -113,7 +133,9 @@ setup for replication.
 
 **Fixed:** the data (sha256-verified), splits, windowing (12 × 5 min, stride 12),
 serialization, the within-step feature permutation (seeded with `seed: 3407`), the
-LoRA adapters and the software versions. Window ordering and labels are identical
+LoRA adapters and the software versions. The adapters for Gemma 3 1B, SmolLM2 1.7B,
+Gemma 2 2B (IT and base), Qwen2.5 7B, Qwen2.5-VL 7B and Llama 3.1 8B were trained on
+the reference L40S. Window ordering and labels are identical
 on every machine.
 
 **Not bit-identical:** scores depend on floating-point GPU kernels (4-bit
@@ -156,9 +178,9 @@ results off).
 **Pod setup.** Pick any PyTorch template with **CUDA 12.8+** (NVIDIA driver
 ≥ 570), since the locked PyTorch uses cu128 wheels. We use an **L40S (48 GB)**,
 the reference hardware and the cheapest option we found for the full run. Any
-24 GB+ GPU (e.g. RTX 4090, L4, A5000, A40) also runs all nine backbones; the 7B
+24 GB+ GPU (e.g. RTX 4090, L4, A5000, A40) also runs all fifteen backbones; the 7B/8B
 models need ~16 GB+. Attach a network
-volume (~50 GB) mounted at `/workspace` so the environment, data and base
+volume (~80 GB) mounted at `/workspace` so the environment, data and base
 checkpoints survive pod restarts.
 
 ```bash
@@ -189,10 +211,10 @@ interrupted, re-run the same command and scoring resumes from its last checkpoin
 Run long jobs inside `tmux` (or with `nohup`) so they survive a dropped SSH or
 web-terminal session.
 
-To build the summary figures, either install [Quarto](https://quarto.org) on the
-pod and run the `quarto render` command from Level 1 with
-`RESULTS_DIR=outputs/rescore`, or copy `outputs/rescore/` back to your machine
-(e.g. `runpodctl send outputs/rescore`) and render there.
+To build the summary figures, run
+`uv run python scripts/make_figures.py --results outputs/rescore --out outputs/figures_rescore`
+on the pod, or copy `outputs/rescore/` back to your machine
+(e.g. `runpodctl send outputs/rescore`) and run it there.
 
 ### Method summary
 
@@ -234,9 +256,9 @@ and adapters, and add its own configs, scripts and results to this repository.
 │   └── assets.yaml            # Hugging Face repo ids, revisions and checksums
 ├── src/lortrace/
 │   └── benchmark/             # detection pipeline: preprocessing, serialization, training, scoring, evaluation
-├── scripts/                   # reproduce.py, download_assets.py and the stage CLIs
+├── scripts/                   # reproduce.py, make_figures.py, download_assets.py and the stage CLIs
 ├── results/<model>/           # released reference scores + metrics
-├── report/results.qmd          # summary figures and tables
+├── report/results.qmd         # optional HTML report (same figures as scripts/make_figures.py)
 ├── notebooks/lor_labels/      # how the LOR labels were reconstructed from AEMO notices
 ├── data/                      # data/raw/ is filled by download_assets.py
 ├── weights/                   # weights/<model>/adapter/ is filled by download_assets.py
@@ -274,5 +296,5 @@ If you use this code, data or adapters, please cite the dataset (see also
   [copyright permissions](https://www.aemo.com.au/privacy-and-legal-notices/copyright-permissions).
   See the [dataset card](data/raw/README.md).
 - **Adapters:** each follows its base model's license (Apache-2.0, Gemma Terms
-  of Use, or NVIDIA Open Model License); see [`weights/README.md`](weights/README.md).
+  of Use, NVIDIA Open Model License, or Llama 3.1 Community License); see [`weights/README.md`](weights/README.md).
   Please cite the dataset if you use them.
