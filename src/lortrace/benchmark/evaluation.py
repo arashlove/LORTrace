@@ -424,27 +424,7 @@ def _make_plots(
         plt.close(fig)
         saved.append(p.name)
 
-    # 5. LOR matrix heatmap (forecast rows vs actual cols).
-    lor = _lor_matrix(test["forecast_sev"], test["actual_sev"])
-    fig, ax = plt.subplots(figsize=(5, 4.5))
-    mat = np.array(lor["matrix"])
-    im = ax.imshow(mat, cmap="Blues")
-    ax.set_xticks(range(3))
-    ax.set_xticklabels(lor["cols"], rotation=30, ha="right")
-    ax.set_yticks(range(3))
-    ax.set_yticklabels(lor["rows"])
-    for i in range(3):
-        for j in range(3):
-            ax.text(j, i, str(mat[i, j]), ha="center", va="center", color="black")
-    ax.set_title("Forecast vs actual LOR (test)")
-    fig.colorbar(im, ax=ax)
-    fig.tight_layout()
-    p = out_dir / "lor_matrix.png"
-    fig.savefig(p, dpi=120)
-    plt.close(fig)
-    saved.append(p.name)
-
-    # 6. Optional feature attribution.
+    # 5. Optional feature attribution.
     if "feature_scores" in test and test["feature_scores"].size:
         manifest_features = cfg.features.per_step
         feat = test["feature_scores"]
