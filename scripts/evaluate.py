@@ -54,11 +54,6 @@ def _print_results(results: dict) -> None:
         print(f"F1                  : {_fmt(binary['f1'])}")
         print("-" * 60)
 
-    print("LOR matrix (rows=forecast LOR1/2/3, cols=actual LOR1/2/3):")
-    lor = results["lor_matrix_forecast_vs_actual"]
-    print("            " + "  ".join(f"{c:>14}" for c in lor["cols"]))
-    for name, row in zip(lor["rows"], lor["matrix"]):
-        print(f"{name:>12}" + "  ".join(f"{v:>14}" for v in row))
     print("=" * 60)
 
 

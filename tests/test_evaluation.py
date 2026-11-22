@@ -40,22 +40,6 @@ def test_events_from_mask_groups_runs():
     assert events == [(1, 2), (5, 5)]
 
 
-def test_lor_matrix_orientation():
-    forecast = np.array([1, 2, 3, 0, 1])
-    actual = np.array([1, 2, 3, 0, 0])
-    lor = ev._lor_matrix(forecast, actual)
-    mat = np.array(lor["matrix"])
-    # Diagonal counts for LOR1/2/3 forecast==actual.
-    assert mat[0, 0] == 1  # forecast LOR1 & actual LOR1
-    assert mat[1, 1] == 1
-    assert mat[2, 2] == 1
-    assert lor["rows"][0] == "forecast_LOR1"
-    assert lor["cols"][0] == "actual_LOR1"
-    full = np.array(lor["full_matrix"])
-    assert full.shape == (4, 4)
-    assert full[1, 0] == 1  # forecast LOR1 but actual none (false alarm)
-
-
 def test_detection_matrix_uses_actual_cols():
     pred = np.array([1, 0, 1, 0], dtype=bool)
     gt = np.array([1, 1, 0, 2])

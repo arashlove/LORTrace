@@ -233,33 +233,6 @@ def _event_metrics(
     }
 
 
-def _lor_matrix(forecast_sev: np.ndarray, actual_sev: np.ndarray) -> dict[str, Any]:
-    """Ordered matrix: rows = forecast LOR1/2/3, cols = actual LOR1/2/3.
-
-    Also returns the full 4x4 (including 'none') so misses/false alarms remain
-    visible.
-    """
-    ordered = np.zeros((3, 3), dtype=int)
-    for r, f_level in enumerate(SEVERITY_LEVELS):
-        for c, a_level in enumerate(SEVERITY_LEVELS):
-            ordered[r, c] = int(((forecast_sev == f_level) & (actual_sev == a_level)).sum())
-
-    full = np.zeros((4, 4), dtype=int)
-    for f_level in range(4):
-        for a_level in range(4):
-            full[f_level, a_level] = int(
-                ((forecast_sev == f_level) & (actual_sev == a_level)).sum()
-            )
-    return {
-        "rows": [f"forecast_LOR{level}" for level in SEVERITY_LEVELS],
-        "cols": [f"actual_LOR{level}" for level in SEVERITY_LEVELS],
-        "matrix": ordered.tolist(),
-        "full_rows": ["forecast_none", "forecast_LOR1", "forecast_LOR2", "forecast_LOR3"],
-        "full_cols": ["actual_none", "actual_LOR1", "actual_LOR2", "actual_LOR3"],
-        "full_matrix": full.tolist(),
-    }
-
-
 def _detection_matrix(
     pred: np.ndarray, gt_sev: np.ndarray, prefix: str = "actual"
 ) -> dict[str, Any]:
@@ -465,20 +438,6 @@ def _write_top_anomalies(out_dir: Path, test: dict[str, np.ndarray], k: int = 10
             )
 
 
-def _write_matrix_csv(out_dir: Path, lor: dict[str, Any]) -> None:
-    import csv
-
-    with (out_dir / "lor_matrix.csv").open("w", newline="", encoding="utf-8") as fh:
-        writer = csv.writer(fh)
-        writer.writerow([""] + lor["cols"])
-        for r, row_name in enumerate(lor["rows"]):
-            writer.writerow([row_name] + lor["matrix"][r])
-        writer.writerow([])
-        writer.writerow([""] + lor["full_cols"])
-        for r, row_name in enumerate(lor["full_rows"]):
-            writer.writerow([row_name] + lor["full_matrix"][r])
-
-
 def build_metrics_bundle(
     eval_data: dict[str, np.ndarray],
     quantiles: list[float],
@@ -532,9 +491,6 @@ def build_metrics_bundle(
         "per_severity_recall": ref["per_severity_recall"],
         "event_detection": ref["event_detection"],
         "anomaly_detection_matrix": ref["anomaly_detection_matrix"],
-        "lor_matrix_forecast_vs_actual": _lor_matrix(
-            eval_data["forecast_sev"], eval_data["actual_sev"]
-        ),
         bench_key: benchmark,
         "lor_benchmark": benchmark,
     }
@@ -585,7 +541,6 @@ def run_evaluation(
         )
         primary["plots"] = plots
         _write_top_anomalies(out_dir, eval_data)
-        _write_matrix_csv(out_dir, primary["lor_matrix_forecast_vs_actual"])
 
     (out_dir / "metrics.json").write_text(json.dumps(primary, indent=2), encoding="utf-8")
     return primary
